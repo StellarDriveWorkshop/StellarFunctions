@@ -1,0 +1,20 @@
+name: C# style
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  style:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.102
+      - run: dotnet tool restore
+      - run: dotnet csharpier check src checks
+      - run: dotnet format style checks/style/StyleChecks.csproj --diagnostics IDE0011 --severity warn --verify-no-changes

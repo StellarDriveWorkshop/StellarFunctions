@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Syntax-style analysis only; the game-dependent production build is separate. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../src/**/*.cs" />
+    <Compile Include="../**/*.cs" Exclude="../**/bin/**;../**/obj/**" />
+  </ItemGroup>
+</Project>

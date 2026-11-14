@@ -1,0 +1,2 @@
+# Keep C# source and checks consistent across Windows and Unix checkouts.
+*.cs text eol=lf
