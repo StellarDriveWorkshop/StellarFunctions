@@ -1,7 +1,7 @@
 # Third-party notices
 
 StellarFunctions is original source code licensed under the MIT License
-(see [LICENSE](LICENSE)). It contains no copied third-party source code or
+(see [LICENSE.md](LICENSE.md)). It contains no copied third-party source code or
 bundled assets.
 
 ## Runtime dependencies (not distributed)

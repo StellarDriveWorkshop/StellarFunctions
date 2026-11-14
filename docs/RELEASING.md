@@ -46,3 +46,14 @@ intends to approve.
 Do not describe a release as runtime-validated, save-compatible, or server-ready
 unless the corresponding evidence exists. See the project validation record for
 the scope and limits of each check.
+
+## Stellar Mod Manager package
+
+Update the root `mod.json` version with the release version and keep its image
+paths present in the repository. Include `StellarFunctions.zip` in the draft
+release. The archive contains `mod.json`, its referenced images, and
+`Mods/StellarFunctions.dll`. Check the archived DLL against the release
+checksum and the archived metadata against the tagged source.
+
+After publishing, submit the public repository with the
+[Stellar Mod Manager submission form](https://jollyname.dev/submit/).
