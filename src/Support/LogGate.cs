@@ -15,13 +15,16 @@ public static class LogGate
     {
         switch (name)
         {
-            case "ERROR": return Error;
-            case "WARN": return Warn;
-            case "INFO": return Info;
-            default: return Trace;
+            case "ERROR":
+                return Error;
+            case "WARN":
+                return Warn;
+            case "INFO":
+                return Info;
+            default:
+                return Trace;
         }
     }
 
-    public static bool Visible(int level, int floor, bool diagnostics)
-        => diagnostics || level >= floor;
+    public static bool Visible(int level, int floor, bool diagnostics) => diagnostics || level >= floor;
 }

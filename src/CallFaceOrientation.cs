@@ -27,16 +27,17 @@ internal sealed class CallFaceOrientation : MonoBehaviour
 
     private void Update()
     {
-        if (!_ready || transform.root == Support.PartFactory.Holder) return;
+        if (!_ready || transform.root == Support.PartFactory.Holder)
+            return;
         if (_camera == null)
         {
             var main = Camera.main;
             _camera = main != null ? main.transform : null;
-            if (_camera == null) return;
+            if (_camera == null)
+                return;
         }
         Vector3 up = _surface.up;
-        Vector3 local = Quaternion.Inverse(_surface.rotation)
-            * Vector3.ProjectOnPlane(-_camera.up, up).normalized;
+        Vector3 local = Quaternion.Inverse(_surface.rotation) * Vector3.ProjectOnPlane(-_camera.up, up).normalized;
         float z = Vector3.Dot(local, Vector3.forward);
         float x = Vector3.Dot(local, Vector3.right);
         Vector3 cardinal = CallFaceText.Cardinal(z, x) switch

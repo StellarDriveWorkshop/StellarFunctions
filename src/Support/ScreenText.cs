@@ -21,20 +21,27 @@ public static class ScreenText
     // Legacy name format: "SDScreen|<channel>|<columns>|<speed>". Columns and
     // speed are rendered invariantly so FormatName(ParseName(x)) round-trips
     // byte-identically for every input the builder produces.
-    public static string FormatName(string channel, int columns, float speed)
-        => Prefix + channel + "|" + columns.ToString(CultureInfo.InvariantCulture)
-            + "|" + speed.ToString(CultureInfo.InvariantCulture);
+    public static string FormatName(string channel, int columns, float speed) =>
+        Prefix
+        + channel
+        + "|"
+        + columns.ToString(CultureInfo.InvariantCulture)
+        + "|"
+        + speed.ToString(CultureInfo.InvariantCulture);
 
     public static bool ParseName(string name, out string channel, out int columns, out float speed)
     {
         channel = null;
         columns = DefaultColumns;
         speed = DefaultSpeed;
-        if (name == null || !name.StartsWith(Prefix, StringComparison.Ordinal)) return false;
+        if (name == null || !name.StartsWith(Prefix, StringComparison.Ordinal))
+            return false;
         string[] parts = name.Substring(Prefix.Length).Split('|');
         channel = parts[0];
-        if (parts.Length > 1) int.TryParse(parts[1], out columns);
-        if (parts.Length > 2) float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out speed);
+        if (parts.Length > 1)
+            int.TryParse(parts[1], out columns);
+        if (parts.Length > 2)
+            float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out speed);
         return true;
     }
 
@@ -44,8 +51,8 @@ public static class ScreenText
 
     // Advances the ticker offset exactly like the legacy per-frame update:
     // float delta*speed accumulated modulo the ticker length.
-    public static float Advance(float offset, float delta, float speed, int tickerLength)
-        => (offset + delta * speed) % tickerLength;
+    public static float Advance(float offset, float delta, float speed, int tickerLength) =>
+        (offset + delta * speed) % tickerLength;
 
     // The visible window of `ticker` starting at `offset` characters,
     // wrapping around, `columns` glyphs wide.
@@ -60,8 +67,8 @@ public static class ScreenText
 
     // Monospace presentation markup with HTML escaping. Spaces become
     // non-breaking so the mspace advance applies uniformly.
-    public static string Mono(string value)
-        => "<mspace=0.62em>" + value.Replace("<", "&lt;").Replace(' ', ' ') + "</mspace>";
+    public static string Mono(string value) =>
+        "<mspace=0.62em>" + value.Replace("<", "&lt;").Replace(' ', ' ') + "</mspace>";
 }
 
 // Generic channel-provider registry: last-writer-wins registration,
@@ -70,15 +77,18 @@ public static class ScreenText
 // Unity-free so checks/core exercises the same logic the game runs.
 public sealed class ChannelProviders<TScreen, TFrame>
 {
-    private readonly Dictionary<string, Func<TScreen, TFrame>> _providers =
-        new Dictionary<string, Func<TScreen, TFrame>>(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Func<TScreen, TFrame>> _providers = new Dictionary<
+        string,
+        Func<TScreen, TFrame>
+    >(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _errorChannels = new HashSet<string>(StringComparer.Ordinal);
 
     public int Count => _providers.Count;
 
     public void Provide(string channel, Func<TScreen, TFrame> provider)
     {
-        if (!string.IsNullOrEmpty(channel) && provider != null) _providers[channel] = provider;
+        if (!string.IsNullOrEmpty(channel) && provider != null)
+            _providers[channel] = provider;
     }
 
     // Removes the provider only when `expected` equals the registered one.
@@ -87,7 +97,8 @@ public sealed class ChannelProviders<TScreen, TFrame>
     // old provider cannot unregister another provider's replacement.
     public bool Unprovide(string channel, Func<TScreen, TFrame> expected)
     {
-        if (channel == null || expected == null) return false;
+        if (channel == null || expected == null)
+            return false;
         return _providers.TryGetValue(channel, out var current)
             && current.Equals(expected)
             && _providers.Remove(channel);
@@ -101,6 +112,5 @@ public sealed class ChannelProviders<TScreen, TFrame>
 
     // Returns true the first time a channel reports an error, false after —
     // callers log on true only, preserving once-per-channel reporting.
-    public bool MarkProviderError(string channel)
-        => channel != null && _errorChannels.Add(channel);
+    public bool MarkProviderError(string channel) => channel != null && _errorChannels.Add(channel);
 }

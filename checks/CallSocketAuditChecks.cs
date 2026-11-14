@@ -11,8 +11,8 @@ using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 using Ships.Cables;
-using Ships.Interface.Model.Parts.Common;
 using Ships.Interface.Model.Parts;
+using Ships.Interface.Model.Parts.Common;
 using Ships.Interface.Model.Placement;
 using Ships.Interface.Settings;
 using UnityEngine;
@@ -48,9 +48,11 @@ internal static class CallSocketAuditChecks
         var parts = new List<PartSettings>();
         foreach (var p in Resources.FindObjectsOfTypeAll<PartSettings>())
         {
-            if (p == null || p.part == null) continue;
+            if (p == null || p.part == null)
+                continue;
             var sockets = p.part.GetComponentsInChildren<SocketObject>(true);
-            if (sockets == null || !sockets.Any(s => s != null && s.Type == CableType.Signal)) continue;
+            if (sockets == null || !sockets.Any(s => s != null && s.Type == CableType.Signal))
+                continue;
             parts.Add(p);
         }
         check(parts.Count > 0, "socket audit enumerated " + parts.Count + " signal-capable part settings");
@@ -59,14 +61,19 @@ internal static class CallSocketAuditChecks
         foreach (int count in new[] { 1, 2, 3 })
         {
             var call = (PartSettings)variant.Invoke(null, new object[] { count });
-            var callSockets = call.part.GetComponentsInChildren<SocketObject>(true)
+            var callSockets = call
+                .part.GetComponentsInChildren<SocketObject>(true)
                 .Where(s => s != null && s.Type == CableType.Signal)
-                .Select(s => new { s.Id, Pos = frameRot * SocketPos(call, s) }).ToArray();
+                .Select(s => new { s.Id, Pos = frameRot * SocketPos(call, s) })
+                .ToArray();
             foreach (var neighbor in parts)
             {
-                var nearSockets = neighbor.part.GetComponentsInChildren<SocketObject>(true)
-                    .Where(s => s != null && s.Type == CableType.Signal).ToArray();
-                if (nearSockets.Length == 0) continue;
+                var nearSockets = neighbor
+                    .part.GetComponentsInChildren<SocketObject>(true)
+                    .Where(s => s != null && s.Type == CableType.Signal)
+                    .ToArray();
+                if (nearSockets.Length == 0)
+                    continue;
                 foreach (var cs in callSockets)
                 foreach (var ns in nearSockets)
                 {
@@ -76,8 +83,11 @@ internal static class CallSocketAuditChecks
                         Vector3 yawed = Quaternion.AngleAxis(yaw, Vector3.up) * np;
                         Vector3 offset = cs.Pos - yawed;
                         float horizontal = Mathf.Sqrt(offset.x * offset.x + offset.z * offset.z);
-                        if (Mathf.Abs(offset.y) >= 0.05f || horizontal > 1.0f) continue;
-                        rows.Add($"call{count} socket{cs.Id} ~ {neighbor.name}#{neighbor.id} socket{ns.Id} yaw{yaw:0} offset=({offset.x:F3},{offset.y:F3},{offset.z:F3})");
+                        if (Mathf.Abs(offset.y) >= 0.05f || horizontal > 1.0f)
+                            continue;
+                        rows.Add(
+                            $"call{count} socket{cs.Id} ~ {neighbor.name}#{neighbor.id} socket{ns.Id} yaw{yaw:0} offset=({offset.x:F3},{offset.y:F3},{offset.z:F3})"
+                        );
                     }
                 }
             }
@@ -86,8 +96,14 @@ internal static class CallSocketAuditChecks
         var auditDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "menu-probe-output");
         Directory.CreateDirectory(auditDir);
         File.WriteAllLines(Path.Combine(auditDir, "socket-audit.txt"), ordered);
-        foreach (var row in ordered.Take(80)) Debug.Log("[socket-audit] " + row);
-        if (ordered.Length > 80) Debug.Log("[socket-audit] ... " + (ordered.Length - 80) + " more coincidences (full list in menu-probe-output/socket-audit.txt)");
+        foreach (var row in ordered.Take(80))
+            Debug.Log("[socket-audit] " + row);
+        if (ordered.Length > 80)
+            Debug.Log(
+                "[socket-audit] ... "
+                    + (ordered.Length - 80)
+                    + " more coincidences (full list in menu-probe-output/socket-audit.txt)"
+            );
         check(true, "socket audit complete: " + ordered.Length + " sub-5cm socket coincidences across Call sizes 1-3");
     }
 }

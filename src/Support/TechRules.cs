@@ -27,30 +27,35 @@ public static class TechRules
 
     // Entries to append to a native tech's unlockedParts: wanted references
     // not already present, deduplicated, order preserved.
-    public static List<T> MergeAdditions<T>(IReadOnlyList<T> existing, IReadOnlyList<T> wanted) where T : class
+    public static List<T> MergeAdditions<T>(IReadOnlyList<T> existing, IReadOnlyList<T> wanted)
+        where T : class
     {
         var have = new HashSet<T>(existing ?? new T[0]);
         var add = new List<T>();
         foreach (T item in wanted)
-            if (item != null && have.Add(item)) add.Add(item);
+            if (item != null && have.Add(item))
+                add.Add(item);
         return add;
     }
 
     // Ownership-aware restore: drop only the references this service added.
     // Foreign additions to the same array and the relative order of
     // everything else are preserved.
-    public static T[] RemoveOwned<T>(IReadOnlyList<T> current, IEnumerable<T> owned) where T : class
+    public static T[] RemoveOwned<T>(IReadOnlyList<T> current, IEnumerable<T> owned)
+        where T : class
     {
-        if (current == null) return null;
+        if (current == null)
+            return null;
         var drop = new HashSet<T>(owned);
         var kept = new List<T>(current.Count);
         foreach (T item in current)
-            if (!drop.Contains(item)) kept.Add(item);
+            if (!drop.Contains(item))
+                kept.Add(item);
         return kept.ToArray();
     }
 
     // A hidden grant is due when the prerequisite is researched and the
     // target is not.
-    public static bool GrantDue(bool prerequisiteResearched, bool targetResearched)
-        => prerequisiteResearched && !targetResearched;
+    public static bool GrantDue(bool prerequisiteResearched, bool targetResearched) =>
+        prerequisiteResearched && !targetResearched;
 }

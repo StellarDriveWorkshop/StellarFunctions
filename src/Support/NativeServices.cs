@@ -18,27 +18,39 @@ public static class NativeServices
 
     // Fresh lookup every call: no caching, correct for callers that must
     // observe service replacement immediately.
-    public static T Service<T>() where T : class
+    public static T Service<T>()
+        where T : class
     {
-        try { return ServiceLocator.GetService<T>(); }
-        catch { return null; }
+        try
+        {
+            return ServiceLocator.GetService<T>();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     // Cached lookup preserving the legacy GameRefs semantics: per-type cache,
     // Unity-object liveness check, scene-load invalidation, and no permanent
     // null caching. Use where repeated lookups would otherwise be wasteful.
-    public static T CachedService<T>() where T : class
+    public static T CachedService<T>()
+        where T : class
     {
         EnsureSceneHook();
         System.Type type = typeof(T);
         if (ServiceCache.TryGetValue(type, out object cached))
         {
             bool alive = cached is UnityEngine.Object unity ? unity != null : cached != null;
-            if (alive) return (T)cached;
+            if (alive)
+                return (T)cached;
             ServiceCache.Remove(type);
         }
         T service = Service<T>();
-        if (service != null) ServiceCache[type] = service; else ServiceCache.Remove(type);
+        if (service != null)
+            ServiceCache[type] = service;
+        else
+            ServiceCache.Remove(type);
         return service;
     }
 
@@ -46,7 +58,8 @@ public static class NativeServices
 
     private static void EnsureSceneHook()
     {
-        if (_sceneHooked) return;
+        if (_sceneHooked)
+            return;
         _sceneHooked = true;
         UnityEngine.SceneManagement.SceneManager.sceneLoaded += (scene, mode) => InvalidateServices();
         UnityEngine.SceneManagement.SceneManager.sceneUnloaded += scene => InvalidateServices();
@@ -56,8 +69,14 @@ public static class NativeServices
     {
         get
         {
-            try { return NetworkManager.Instances.Count > 0 && InstanceFinder.IsServerStarted; }
-            catch { return false; }
+            try
+            {
+                return NetworkManager.Instances.Count > 0 && InstanceFinder.IsServerStarted;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 
@@ -65,8 +84,14 @@ public static class NativeServices
     {
         get
         {
-            try { return NetworkManager.Instances.Count > 0 && InstanceFinder.IsClientStarted; }
-            catch { return false; }
+            try
+            {
+                return NetworkManager.Instances.Count > 0 && InstanceFinder.IsClientStarted;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 
@@ -74,16 +99,27 @@ public static class NativeServices
     {
         get
         {
-            try { return NetworkManager.Instances.Count; }
-            catch { return 0; }
+            try
+            {
+                return NetworkManager.Instances.Count;
+            }
+            catch
+            {
+                return 0;
+            }
         }
     }
 
     public static void Trace(string scope, string message) => Write("TRACE", scope, message);
+
     public static void Info(string scope, string message) => Write("INFO", scope, message);
+
     public static void Warn(string scope, string message) => Write("WARN", scope, message);
+
     public static void Error(string scope, string message) => Write("ERROR", scope, message);
-    public static void Error(string scope, string message, Exception error) => Write("ERROR", scope, message + " :: " + error);
+
+    public static void Error(string scope, string message, Exception error) =>
+        Write("ERROR", scope, message + " :: " + error);
 
     // Release severity floor (LogGate levels: Trace=0..Error=3). Routine
     // Trace/Info diagnostics are hidden by default so ordinary players see
@@ -99,7 +135,8 @@ public static class NativeServices
     {
         get
         {
-            if (!_diagnostics.HasValue) _diagnostics = DetectDiagnostics();
+            if (!_diagnostics.HasValue)
+                _diagnostics = DetectDiagnostics();
             return _diagnostics.Value;
         }
         set => _diagnostics = value;
@@ -110,9 +147,14 @@ public static class NativeServices
         try
         {
             string env = System.Environment.GetEnvironmentVariable("STELLARFUNCTIONS_DIAGNOSTICS");
-            if (!string.IsNullOrEmpty(env)
-                && (env == "1" || string.Equals(env, "true", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(env, "yes", StringComparison.OrdinalIgnoreCase)))
+            if (
+                !string.IsNullOrEmpty(env)
+                && (
+                    env == "1"
+                    || string.Equals(env, "true", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(env, "yes", StringComparison.OrdinalIgnoreCase)
+                )
+            )
                 return true;
         }
         catch { }
@@ -122,18 +164,28 @@ public static class NativeServices
             return !string.IsNullOrEmpty(dir)
                 && System.IO.File.Exists(System.IO.Path.Combine(dir, "StellarFunctions.diagnostics"));
         }
-        catch { return false; }
+        catch
+        {
+            return false;
+        }
     }
 
     private static void Write(string level, string scope, string message)
     {
-        if (!LogGate.Visible(LogGate.Level(level), Floor, DiagnosticsEnabled)) return;
+        if (!LogGate.Visible(LogGate.Level(level), Floor, DiagnosticsEnabled))
+            return;
         string text = "[support:" + scope + "] " + message;
         switch (level)
         {
-            case "ERROR": MelonLogger.Error(text); break;
-            case "WARN": MelonLogger.Warning(text); break;
-            default: MelonLogger.Msg(text); break;
+            case "ERROR":
+                MelonLogger.Error(text);
+                break;
+            case "WARN":
+                MelonLogger.Warning(text);
+                break;
+            default:
+                MelonLogger.Msg(text);
+                break;
         }
     }
 }

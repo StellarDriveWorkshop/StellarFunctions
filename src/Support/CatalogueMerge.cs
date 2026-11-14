@@ -14,6 +14,7 @@ public static class CatalogueMerge
         // Null when every registered id is already present: callers must not
         // rewrite the dictionary in that case.
         public Dictionary<ushort, T> Merged;
+
         // Ids whose existing entry is not our owned object. Never overwritten.
         public List<ushort> Conflicts;
     }
@@ -21,7 +22,8 @@ public static class CatalogueMerge
     public static Result<T> Plan<T>(IReadOnlyDictionary<ushort, T> existing, IReadOnlyDictionary<ushort, T> registered)
     {
         var result = new Result<T>();
-        if (existing == null || registered == null || registered.Count == 0) return result;
+        if (existing == null || registered == null || registered.Count == 0)
+            return result;
         foreach (var pair in registered)
         {
             if (!existing.TryGetValue(pair.Key, out var current))
@@ -29,7 +31,8 @@ public static class CatalogueMerge
                 if (result.Merged == null)
                 {
                     result.Merged = new Dictionary<ushort, T>(existing.Count + registered.Count);
-                    foreach (var entry in existing) result.Merged[entry.Key] = entry.Value;
+                    foreach (var entry in existing)
+                        result.Merged[entry.Key] = entry.Value;
                 }
                 result.Merged[pair.Key] = pair.Value;
             }

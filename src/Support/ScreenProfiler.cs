@@ -41,9 +41,14 @@ internal static class ScreenProfiler
         try
         {
             string env = Environment.GetEnvironmentVariable(EnvName);
-            if (!string.IsNullOrEmpty(env)
-                && (env == "1" || string.Equals(env, "true", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(env, "yes", StringComparison.OrdinalIgnoreCase)))
+            if (
+                !string.IsNullOrEmpty(env)
+                && (
+                    env == "1"
+                    || string.Equals(env, "true", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(env, "yes", StringComparison.OrdinalIgnoreCase)
+                )
+            )
                 return true;
         }
         catch { }
@@ -52,7 +57,10 @@ internal static class ScreenProfiler
             string dir = Path.GetDirectoryName(typeof(ScreenProfiler).Assembly.Location);
             return !string.IsNullOrEmpty(dir) && File.Exists(Path.Combine(dir, MarkerName));
         }
-        catch { return false; }
+        catch
+        {
+            return false;
+        }
     }
 
     // Called from ScreenSurface.Awake/OnDestroy. Rare events, so the counter
@@ -60,34 +68,38 @@ internal static class ScreenProfiler
     internal static void SurfaceCreated(bool measured)
     {
         _surfaces++;
-        if (measured) _measuredSurfaces++;
+        if (measured)
+            _measuredSurfaces++;
     }
 
     internal static void SurfaceDestroyed(bool measured)
     {
         _surfaces--;
-        if (measured) _measuredSurfaces--;
+        if (measured)
+            _measuredSurfaces--;
     }
 
     // Returns a timestamp only while a capture is active; callers must pass
     // the result to End, which ignores zero.
-    internal static long Begin(ScreenProfileBucket bucket)
-        => _stats == null ? 0L : Stopwatch.GetTimestamp();
+    internal static long Begin(ScreenProfileBucket bucket) => _stats == null ? 0L : Stopwatch.GetTimestamp();
 
     internal static void End(ScreenProfileBucket bucket, long start)
     {
-        if (start == 0L || _stats == null) return;
+        if (start == 0L || _stats == null)
+            return;
         _stats.Record(bucket, Stopwatch.GetTimestamp() - start);
     }
 
     internal static void Exit(ScreenProfileExit kind) => _stats?.Exit(kind);
+
     internal static void Frame() => _stats?.Frame();
 
     // Called once per frame from Plugin.OnUpdate. Polls the F7 trigger and
     // auto-stops expired captures. Returns immediately when disabled.
     internal static void Tick()
     {
-        if (!_enabled) return;
+        if (!_enabled)
+            return;
         if (_stats != null)
         {
             _stats.Frame();
@@ -100,7 +112,10 @@ internal static class ScreenProfiler
         var keyboard = Keyboard.current;
         if (keyboard != null && keyboard.f7Key.wasPressedThisFrame)
         {
-            if (_stats == null) Start(); else Finish();
+            if (_stats == null)
+                Start();
+            else
+                Finish();
         }
     }
 
@@ -109,15 +124,18 @@ internal static class ScreenProfiler
         _stats = new ScreenProfileStats();
         _captureStart = Time.unscaledTime;
         _captureStartUtc = DateTime.UtcNow;
-        NativeServices.Warn("screen-profile",
-            "capture started — press F7 to stop early or wait " + CaptureSeconds + "s");
+        NativeServices.Warn(
+            "screen-profile",
+            "capture started — press F7 to stop early or wait " + CaptureSeconds + "s"
+        );
     }
 
     private static void Finish()
     {
         var stats = _stats;
         _stats = null;
-        if (stats == null) return;
+        if (stats == null)
+            return;
         // Report generation and file I/O must never throw into OnUpdate: a
         // managed fault here would repeat every frame and could mask the real
         // failure. Everything below is guarded; writes go through a temp file
@@ -128,10 +146,22 @@ internal static class ScreenProfiler
             double seconds = Time.unscaledTime - _captureStart;
             string build = BuildHash();
             string started = _captureStartUtc.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
-            string json = stats.StructuredJson(build, Application.unityVersion, Application.isBatchMode,
-                started, seconds, Stopwatch.Frequency);
-            string text = stats.TextReport(build, Application.unityVersion, Application.isBatchMode,
-                started, seconds, Stopwatch.Frequency);
+            string json = stats.StructuredJson(
+                build,
+                Application.unityVersion,
+                Application.isBatchMode,
+                started,
+                seconds,
+                Stopwatch.Frequency
+            );
+            string text = stats.TextReport(
+                build,
+                Application.unityVersion,
+                Application.isBatchMode,
+                started,
+                seconds,
+                Stopwatch.Frequency
+            );
             string stamp = _captureStartUtc.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture);
             string dir = OutputDirectory();
             Directory.CreateDirectory(dir);
@@ -149,7 +179,8 @@ internal static class ScreenProfiler
     {
         string temp = path + ".tmp";
         File.WriteAllText(temp, content, Encoding.UTF8);
-        if (File.Exists(path)) File.Delete(path);
+        if (File.Exists(path))
+            File.Delete(path);
         File.Move(temp, path);
     }
 
@@ -163,17 +194,22 @@ internal static class ScreenProfiler
 
     private static string BuildHash()
     {
-        if (_buildHash != null) return _buildHash;
+        if (_buildHash != null)
+            return _buildHash;
         try
         {
             string path = typeof(ScreenProfiler).Assembly.Location;
             using var sha = SHA256.Create();
             byte[] hash = sha.ComputeHash(File.ReadAllBytes(path));
             var hex = new StringBuilder(hash.Length * 2);
-            foreach (byte b in hash) hex.Append(b.ToString("x2", CultureInfo.InvariantCulture));
+            foreach (byte b in hash)
+                hex.Append(b.ToString("x2", CultureInfo.InvariantCulture));
             _buildHash = hex.ToString();
         }
-        catch { _buildHash = "unknown"; }
+        catch
+        {
+            _buildHash = "unknown";
+        }
         return _buildHash;
     }
 }

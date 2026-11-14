@@ -26,7 +26,8 @@ public static class MenuCatalog
     // treating a handled failure as success.
     public static bool Install()
     {
-        if (_installed) return true;
+        if (_installed)
+            return true;
         _tabsConfig = AccessTools.Field(typeof(BuildMenu), "tabsConfig");
         var method = AccessTools.Method(typeof(BuildMenu), "Start");
         if (_tabsConfig == null || method == null)
@@ -37,8 +38,7 @@ public static class MenuCatalog
         try
         {
             var harmony = new HarmonyLib.Harmony("stellarfunctions.support.menu");
-            harmony.Patch(method,
-                prefix: new HarmonyMethod(typeof(MenuCatalog), nameof(BeforeStart)));
+            harmony.Patch(method, prefix: new HarmonyMethod(typeof(MenuCatalog), nameof(BeforeStart)));
             var info = HarmonyLib.Harmony.GetPatchInfo(method);
             if (info == null || !info.Prefixes.Any(p => p.owner == harmony.Id))
             {
@@ -62,22 +62,35 @@ public static class MenuCatalog
     public static void BeforeStart(BuildMenu __instance)
     {
         Registration.EnsureMaterialized();
-        if (_tabsConfig == null || __instance == null) return;
-        if (!(_tabsConfig.GetValue(__instance) is BuildMenuTabConfig[] tabs)) return;
+        if (_tabsConfig == null || __instance == null)
+            return;
+        if (!(_tabsConfig.GetValue(__instance) is BuildMenuTabConfig[] tabs))
+            return;
 
         foreach (var entry in Registration.MenuEntries())
         {
             string anchorName = entry.Key;
             var settings = entry.Value;
-            if (tabs.Any(tab => tab != null && tab.rows != null && tab.rows.Any(row => row != null && row.parts != null && row.parts.Contains(settings))))
+            if (
+                tabs.Any(tab =>
+                    tab != null
+                    && tab.rows != null
+                    && tab.rows.Any(row => row != null && row.parts != null && row.parts.Contains(settings))
+                )
+            )
                 continue;
 
-            if (!MenuPlan.TryPlace(
+            if (
+                !MenuPlan.TryPlace(
                     tabs.Select(tab => tab?.rows ?? Array.Empty<BuildMenuTabConfig.BuildMenuRow>()),
                     row => row?.parts,
                     part => Matches(part, anchorName),
                     RowCapacity,
-                    out int tabIndex, out int rowIndex, out int insertIndex))
+                    out int tabIndex,
+                    out int rowIndex,
+                    out int insertIndex
+                )
+            )
                 continue;
 
             var target = tabs[tabIndex].rows[rowIndex];
@@ -96,24 +109,29 @@ public static class MenuCatalog
         foreach (var pair in Inserted)
         {
             var row = pair.Key;
-            if (row?.parts == null) continue;
+            if (row?.parts == null)
+                continue;
             var kept = row.parts.Where(p => !pair.Value.Contains(p)).ToArray();
-            if (kept.Length != row.parts.Length) row.parts = kept;
+            if (kept.Length != row.parts.Length)
+                row.parts = kept;
         }
         Inserted.Clear();
     }
 
     private static void TrackInsertion(BuildMenuTabConfig.BuildMenuRow row, PartSettings settings)
     {
-        if (row == null) return;
+        if (row == null)
+            return;
         if (!Inserted.TryGetValue(row, out var list))
             Inserted[row] = list = new List<PartSettings>();
-        if (!list.Contains(settings)) list.Add(settings);
+        if (!list.Contains(settings))
+            list.Add(settings);
     }
 
     private static bool Matches(PartSettings settings, string name)
     {
-        if (settings == null) return false;
+        if (settings == null)
+            return false;
         return settings.name == name || settings.fullLabel == name;
     }
 }

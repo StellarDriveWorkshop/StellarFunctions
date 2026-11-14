@@ -1,13 +1,13 @@
 using System;
 using System.Linq;
 using Core.Services;
-using StellarFunctions.Content;
 using Ships.Interface.Model.Parts;
 using Ships.Interface.Model.Parts.Common;
 using Ships.Interface.Model.Parts.State;
 using Ships.Interface.Model.Parts.StateTypes;
 using Ships.Interface.Services;
 using Ships.Visuals;
+using StellarFunctions.Content;
 using UnityEngine;
 using WorldTracking.Interface.Services;
 
@@ -26,14 +26,27 @@ internal static class FunctionSourcePresentation
     internal static string Label(ContentPart context, EntityPartSocket socket)
     {
         if (!TryResolvePart(socket, out StatefulPart part))
-            return "Unavailable source · section " + socket.PartContext.ShipId + " · part " + socket.PartContext.PartId +
-                " · output " + socket.Socket.SocketId;
+            return "Unavailable source · section "
+                + socket.PartContext.ShipId
+                + " · part "
+                + socket.PartContext.PartId
+                + " · output "
+                + socket.Socket.SocketId;
 
         string type = FriendlyType(part.State, part.Settings?.name);
         string meaning = OutputMeaning(part.State, socket.Socket.SocketId);
         string distance = Distance(context, socket);
-        return type + " — " + meaning + (distance.Length == 0 ? "" : " · " + distance) +
-            "  [part " + part.Id + " · section " + socket.PartContext.ShipId + " · output " + socket.Socket.SocketId + "]";
+        return type
+            + " — "
+            + meaning
+            + (distance.Length == 0 ? "" : " · " + distance)
+            + "  [part "
+            + part.Id
+            + " · section "
+            + socket.PartContext.ShipId
+            + " · output "
+            + socket.Socket.SocketId
+            + "]";
     }
 
     internal static bool Identify(ContentPart context, EntityPartSocket socket, out string message)
@@ -88,30 +101,41 @@ internal static class FunctionSourcePresentation
 
     internal static void Tick()
     {
-        if (_highlightOwner != null && Time.unscaledTime >= _removeHighlightAt) RemoveHighlight();
+        if (_highlightOwner != null && Time.unscaledTime >= _removeHighlightAt)
+            RemoveHighlight();
     }
 
     internal static void Reset() => RemoveHighlight();
 
     internal static bool HasOutput(IStatefulPartState state, byte socket)
     {
-        byte[] emittedSockets = state is ISignalEmitterState emitter
-            ? emitter.EmissionSockets
-            : state is ISignalProcessorState processor ? processor.EmissionSockets : Array.Empty<byte>();
+        byte[] emittedSockets =
+            state is ISignalEmitterState emitter ? emitter.EmissionSockets
+            : state is ISignalProcessorState processor ? processor.EmissionSockets
+            : Array.Empty<byte>();
         return emittedSockets.Contains(socket);
     }
 
     internal static string FriendlyType(IStatefulPartState state, string nativeName = null)
     {
-        if (state is FluidTankState) return "Fluid Tank";
-        if (state is GasSensorState) return "Gas Sensor";
-        if (state is VelocitySensorState) return "Velocity Sensor";
-        if (state is AngularVelSensorState) return "Angular Velocity Sensor";
-        if (state is ConstantState) return "Constant";
-        if (state is LeverState) return "Lever";
-        if (state is MathGateState) return "Math Gate";
-        if (state is SignalProcessorState) return "Signal Processor";
-        if (state is MemoryRegisterState) return "Memory Register";
+        if (state is FluidTankState)
+            return "Fluid Tank";
+        if (state is GasSensorState)
+            return "Gas Sensor";
+        if (state is VelocitySensorState)
+            return "Velocity Sensor";
+        if (state is AngularVelSensorState)
+            return "Angular Velocity Sensor";
+        if (state is ConstantState)
+            return "Constant";
+        if (state is LeverState)
+            return "Lever";
+        if (state is MathGateState)
+            return "Math Gate";
+        if (state is SignalProcessorState)
+            return "Signal Processor";
+        if (state is MemoryRegisterState)
+            return "Memory Register";
         return string.IsNullOrWhiteSpace(nativeName) ? "Signal source" : nativeName;
     }
 
@@ -126,7 +150,8 @@ internal static class FunctionSourcePresentation
         if (state is AngularVelSensorState angular)
             return "angular velocity";
         if (state is ConstantState constant)
-            return "fixed value " + constant.ConstantValue.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
+            return "fixed value "
+                + constant.ConstantValue.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
         if (state is LeverState)
             return "manual control value";
         if (state is MathGateState math)
@@ -144,17 +169,28 @@ internal static class FunctionSourcePresentation
     {
         switch (operation)
         {
-            case MathGateOperation.Multiply: return "input 1 × input 2";
-            case MathGateOperation.Add: return "input 1 + input 2";
-            case MathGateOperation.Subtract: return "input 1 − input 2";
-            case MathGateOperation.Divide: return "input 1 ÷ input 2 (zero divisor outputs 0)";
-            case MathGateOperation.Min: return "lower of inputs 1 and 2";
-            case MathGateOperation.Max: return "higher of inputs 1 and 2";
-            case MathGateOperation.Atan2: return "atan2(input 1, input 2)";
-            case MathGateOperation.LesserThan: return "1 when input 1 < input 2; otherwise 0";
-            case MathGateOperation.GreaterThan: return "1 when input 1 > input 2; otherwise 0";
-            case MathGateOperation.Equals: return "1 when inputs match; otherwise 0";
-            default: return "native math gate output";
+            case MathGateOperation.Multiply:
+                return "input 1 × input 2";
+            case MathGateOperation.Add:
+                return "input 1 + input 2";
+            case MathGateOperation.Subtract:
+                return "input 1 − input 2";
+            case MathGateOperation.Divide:
+                return "input 1 ÷ input 2 (zero divisor outputs 0)";
+            case MathGateOperation.Min:
+                return "lower of inputs 1 and 2";
+            case MathGateOperation.Max:
+                return "higher of inputs 1 and 2";
+            case MathGateOperation.Atan2:
+                return "atan2(input 1, input 2)";
+            case MathGateOperation.LesserThan:
+                return "1 when input 1 < input 2; otherwise 0";
+            case MathGateOperation.GreaterThan:
+                return "1 when input 1 > input 2; otherwise 0";
+            case MathGateOperation.Equals:
+                return "1 when inputs match; otherwise 0";
+            default:
+                return "native math gate output";
         }
     }
 
@@ -162,17 +198,28 @@ internal static class FunctionSourcePresentation
     {
         switch (operation)
         {
-            case SignalProcessorOperation.Negation: return "−input";
-            case SignalProcessorOperation.SquareRoot: return "square root (negative input outputs 0)";
-            case SignalProcessorOperation.Abs: return "absolute value";
-            case SignalProcessorOperation.Delta: return "rate of change per second";
-            case SignalProcessorOperation.Sin: return "sine of input";
-            case SignalProcessorOperation.Cos: return "cosine of input";
-            case SignalProcessorOperation.Tan: return "tangent of input";
-            case SignalProcessorOperation.Asin: return "arcsine of input clamped to −1…1";
-            case SignalProcessorOperation.Acos: return "arccosine of input clamped to −1…1";
-            case SignalProcessorOperation.Atan: return "arctangent of input";
-            default: return "native signal processor output";
+            case SignalProcessorOperation.Negation:
+                return "−input";
+            case SignalProcessorOperation.SquareRoot:
+                return "square root (negative input outputs 0)";
+            case SignalProcessorOperation.Abs:
+                return "absolute value";
+            case SignalProcessorOperation.Delta:
+                return "rate of change per second";
+            case SignalProcessorOperation.Sin:
+                return "sine of input";
+            case SignalProcessorOperation.Cos:
+                return "cosine of input";
+            case SignalProcessorOperation.Tan:
+                return "tangent of input";
+            case SignalProcessorOperation.Asin:
+                return "arcsine of input clamped to −1…1";
+            case SignalProcessorOperation.Acos:
+                return "arccosine of input clamped to −1…1";
+            case SignalProcessorOperation.Atan:
+                return "arctangent of input";
+            default:
+                return "native signal processor output";
         }
     }
 
@@ -180,15 +227,15 @@ internal static class FunctionSourcePresentation
     {
         part = null;
         var ships = ServiceLocator.GetService<IShipsClientProvider>();
-        if (ships == null || !ships.TryGetShip(socket.PartContext.ShipId, out var ship)) return false;
+        if (ships == null || !ships.TryGetShip(socket.PartContext.ShipId, out var ship))
+            return false;
         part = ship.StatefulParts?.FirstOrDefault(p => p.Id == socket.PartContext.PartId);
         return part != null && part.State != null;
     }
 
     private static ShipPartVisuals FindVisuals(uint shipId)
     {
-        return Resources.FindObjectsOfTypeAll<ShipPartVisuals>()
-            .FirstOrDefault(v => v != null && v.ShipId == shipId);
+        return Resources.FindObjectsOfTypeAll<ShipPartVisuals>().FirstOrDefault(v => v != null && v.ShipId == shipId);
     }
 
     private static string Distance(ContentPart context, EntityPartSocket socket)
@@ -197,18 +244,30 @@ internal static class FunctionSourcePresentation
         {
             var ships = ServiceLocator.GetService<IShipsClientProvider>();
             var transpose = ServiceLocator.GetService<IWorldTransposeClient>();
-            if (context.Part == null || ships == null || transpose == null ||
-                !ships.TryGetShip(context.ShipId, out var contextShip) ||
-                !ships.TryGetShip(socket.PartContext.ShipId, out var sourceShip) ||
-                !ships.TryGetPartPosition(new PartContext(context.ShipId, context.PartId), out Vector3 contextPosition) ||
-                !ships.TryGetPartPosition(socket.PartContext, out Vector3 sourcePosition)) return "";
+            if (
+                context.Part == null
+                || ships == null
+                || transpose == null
+                || !ships.TryGetShip(context.ShipId, out var contextShip)
+                || !ships.TryGetShip(socket.PartContext.ShipId, out var sourceShip)
+                || !ships.TryGetPartPosition(
+                    new PartContext(context.ShipId, context.PartId),
+                    out Vector3 contextPosition
+                )
+                || !ships.TryGetPartPosition(socket.PartContext, out Vector3 sourcePosition)
+            )
+                return "";
 
-            Vector3 sourceInContextSpace = sourceShip.RelativeSpaceId == contextShip.RelativeSpaceId
-                ? sourcePosition
-                : transpose.Position(sourceShip.RelativeSpaceId, contextShip.RelativeSpaceId, sourcePosition);
-            if (!Finite(contextPosition) || !Finite(sourceInContextSpace)) return "";
+            Vector3 sourceInContextSpace =
+                sourceShip.RelativeSpaceId == contextShip.RelativeSpaceId
+                    ? sourcePosition
+                    : transpose.Position(sourceShip.RelativeSpaceId, contextShip.RelativeSpaceId, sourcePosition);
+            if (!Finite(contextPosition) || !Finite(sourceInContextSpace))
+                return "";
             float distance = Vector3.Distance(contextPosition, sourceInContextSpace);
-            return float.IsFinite(distance) ? distance.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " m" : "";
+            return float.IsFinite(distance)
+                ? distance.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " m"
+                : "";
         }
         catch (Exception)
         {
@@ -221,14 +280,16 @@ internal static class FunctionSourcePresentation
 
     private static bool HasRedEmission(GameObject root)
     {
-        if (root == null) return false;
+        if (root == null)
+            return false;
         foreach (MeshRenderer renderer in root.GetComponentsInChildren<MeshRenderer>())
-            foreach (Material material in renderer.materials)
-                if (material != null && material.HasColor(EmissionColor))
-                {
-                    Color color = material.GetColor(EmissionColor);
-                    if (color.r > 0.99f && color.g < 0.01f && color.b < 0.01f) return true;
-                }
+        foreach (Material material in renderer.materials)
+            if (material != null && material.HasColor(EmissionColor))
+            {
+                Color color = material.GetColor(EmissionColor);
+                if (color.r > 0.99f && color.g < 0.01f && color.b < 0.01f)
+                    return true;
+            }
         return false;
     }
 
@@ -236,7 +297,10 @@ internal static class FunctionSourcePresentation
     {
         if (_highlightOwner != null)
         {
-            try { _highlightOwner.RemoveFloatingPartHighlight(_highlightedPart); }
+            try
+            {
+                _highlightOwner.RemoveFloatingPartHighlight(_highlightedPart);
+            }
             catch (Exception) { }
         }
         _highlightOwner = null;

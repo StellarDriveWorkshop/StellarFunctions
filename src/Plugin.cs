@@ -18,8 +18,9 @@ public sealed class Plugin : MelonMod
         ContentRegistry.Behaviour("stellar-functions.return", () => new DefinitionPartBehaviour());
         ContentRegistry.Behaviour("stellar-functions.transmitter", () => new TransmitterPartBehaviour());
         ContentRegistry.LoadEmbedded(Assembly.GetExecutingAssembly(), "content.functions.json");
-        foreach(ushort id in new ushort[]{62005,62006,62007,62009})
-            if(ContentRegistry.PartDef(id)==null)throw new System.InvalidOperationException("Function content registration failed for part "+id);
+        foreach (ushort id in new ushort[] { 62005, 62006, 62007, 62009 })
+            if (ContentRegistry.PartDef(id) == null)
+                throw new System.InvalidOperationException("Function content registration failed for part " + id);
         FunctionScreens.Install();
         NativeSignalBridge.Install("stellar.functions.native");
         NativeTemplateHooks.Install();

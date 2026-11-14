@@ -38,9 +38,13 @@ public static class Registration
 
     private static bool EnsureBootstrap()
     {
-        if (Bootstrap == null || _bootstrap == 1) return _bootstrap == 1 || Bootstrap == null;
+        if (Bootstrap == null || _bootstrap == 1)
+            return _bootstrap == 1 || Bootstrap == null;
         bool ready;
-        try { ready = Bootstrap(); }
+        try
+        {
+            ready = Bootstrap();
+        }
         catch (Exception ex)
         {
             _bootstrap = -1;
@@ -61,7 +65,8 @@ public static class Registration
     public static void Register(PartSpec spec)
     {
         EnsureBootstrap();
-        if (spec == null || !SpecRules.ValidSpec(spec.Id, spec.Asset)) return;
+        if (spec == null || !SpecRules.ValidSpec(spec.Id, spec.Asset))
+            return;
         if (Specs.Any(s => s.Id == spec.Id))
         {
             NativeServices.Warn(Scope, "duplicate part spec id " + spec.Id + " ignored");
@@ -80,9 +85,13 @@ public static class Registration
     {
         foreach (var spec in Specs)
         {
-            if (Failed.Contains(spec.Id)) continue;
-            if (Built.TryGetValue(spec.Id, out var settings) && settings != null
-                && !string.IsNullOrEmpty(spec.BuildMenuAfter))
+            if (Failed.Contains(spec.Id))
+                continue;
+            if (
+                Built.TryGetValue(spec.Id, out var settings)
+                && settings != null
+                && !string.IsNullOrEmpty(spec.BuildMenuAfter)
+            )
                 yield return new KeyValuePair<string, PartSettings>(spec.BuildMenuAfter, settings);
         }
     }
@@ -93,27 +102,45 @@ public static class Registration
         // without screen hooks, catalogue injection or menu registration
         // would be a silently partial initialization. A failed bootstrap
         // is retried on the next call.
-        if (!EnsureBootstrap()) return;
-        if (_building) return;
+        if (!EnsureBootstrap())
+            return;
+        if (_building)
+            return;
         _building = true;
-        try { Pass(); }
-        finally { _building = false; }
+        try
+        {
+            Pass();
+        }
+        finally
+        {
+            _building = false;
+        }
     }
 
     private static void Pass()
     {
-        if (Specs.Count == 0 || Built.Count + Failed.Count == Specs.Count) return;
+        if (Specs.Count == 0 || Built.Count + Failed.Count == Specs.Count)
+            return;
         _sources = Resources.FindObjectsOfTypeAll<PartSettings>();
         foreach (var spec in Specs)
         {
-            if (Built.ContainsKey(spec.Id) || Failed.Contains(spec.Id)) continue;
+            if (Built.ContainsKey(spec.Id) || Failed.Contains(spec.Id))
+                continue;
             var donor = FindDonor(spec.Donor);
-            if (donor == null) continue; // donor asset not available yet; retry next pass
+            if (donor == null)
+                continue; // donor asset not available yet; retry next pass
             var foreign = FindForeignId(spec.Id);
             if (foreign != null)
             {
                 Failed.Add(spec.Id);
-                NativeServices.Error(Scope, "part id " + spec.Id + " already used by foreign settings '" + foreign.name + "'; refusing to register");
+                NativeServices.Error(
+                    Scope,
+                    "part id "
+                        + spec.Id
+                        + " already used by foreign settings '"
+                        + foreign.name
+                        + "'; refusing to register"
+                );
                 continue;
             }
             try
@@ -138,19 +165,35 @@ public static class Registration
             _readyNotified = true;
             if (readiness == SpecRules.Readiness.Ready)
             {
-                try { PartsReady?.Invoke(); } catch (Exception ex) { NativeServices.Error(Scope, "PartsReady handler failed", ex); }
+                try
+                {
+                    PartsReady?.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    NativeServices.Error(Scope, "PartsReady handler failed", ex);
+                }
             }
             else
             {
-                NativeServices.Error(Scope, "registration incomplete: " + Built.Count + "/" + Specs.Count
-                    + " parts built, " + Failed.Count + " failed; PartsReady not fired");
+                NativeServices.Error(
+                    Scope,
+                    "registration incomplete: "
+                        + Built.Count
+                        + "/"
+                        + Specs.Count
+                        + " parts built, "
+                        + Failed.Count
+                        + " failed; PartsReady not fired"
+                );
             }
         }
     }
 
     private static PartSettings FindDonor(string donorName)
     {
-        if (string.IsNullOrEmpty(donorName) || _sources == null) return null;
+        if (string.IsNullOrEmpty(donorName) || _sources == null)
+            return null;
         foreach (var p in _sources)
             if (p != null && p.name == donorName && p.part != null && !Built.Values.Contains(p))
                 return p;
@@ -159,7 +202,8 @@ public static class Registration
 
     private static PartSettings FindForeignId(ushort id)
     {
-        if (_sources == null) return null;
+        if (_sources == null)
+            return null;
         foreach (var p in _sources)
             if (p != null && p.id == id && !Built.Values.Contains(p))
                 return p;

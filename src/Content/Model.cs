@@ -110,28 +110,42 @@ public sealed class ContentPack
     public static ContentPack Parse(string json, string origin, List<string> errors)
     {
         JObject root;
-        try { root = JObject.Parse(json); }
-        catch (Exception ex) { errors.Add(origin + ": not valid json, " + ex.Message); return null; }
+        try
+        {
+            root = JObject.Parse(json);
+        }
+        catch (Exception ex)
+        {
+            errors.Add(origin + ": not valid json, " + ex.Message);
+            return null;
+        }
 
         var pack = new ContentPack
         {
             Origin = origin,
             Id = Str(root, "id"),
             Name = Str(root, "name"),
-            Version = Str(root, "version") ?? "0.0.0"
+            Version = Str(root, "version") ?? "0.0.0",
         };
-        if (string.IsNullOrEmpty(pack.Id)) { errors.Add(origin + ": pack has no id"); return null; }
-        if (string.IsNullOrEmpty(pack.Name)) pack.Name = pack.Id;
+        if (string.IsNullOrEmpty(pack.Id))
+        {
+            errors.Add(origin + ": pack has no id");
+            return null;
+        }
+        if (string.IsNullOrEmpty(pack.Name))
+            pack.Name = pack.Id;
 
         foreach (JObject part in Children(root, "parts"))
         {
             var def = ParsePart(part, pack);
-            if (def != null) pack.Parts.Add(def);
+            if (def != null)
+                pack.Parts.Add(def);
         }
         foreach (JObject tech in Children(root, "research"))
         {
             var research = ParseResearch(tech, pack);
-            if (research != null) pack.Research.Add(research);
+            if (research != null)
+                pack.Research.Add(research);
         }
         // "items" and "attach" sections are accepted but unused by this pack.
         return pack;
@@ -158,7 +172,7 @@ public sealed class ContentPack
             Behaviour = Str(o, "behaviour"),
             BuildMenuAfter = Str(o, "buildMenuAfter"),
             Mass = (float)Num(o, "mass", 10),
-            Menu = Str(o, "menu") ?? "auto"
+            Menu = Str(o, "menu") ?? "auto",
         };
         string snapping = Str(o, "snapping");
         if (!string.IsNullOrEmpty(snapping))
@@ -169,7 +183,8 @@ public sealed class ContentPack
                 def.Snapping = style;
                 def.SnappingDeclared = true;
             }
-            else pack.Problems.Add(asset + ": unknown snapping style " + snapping + ", keeping the donor's");
+            else
+                pack.Problems.Add(asset + ": unknown snapping style " + snapping + ", keeping the donor's");
         }
 
         var bounds = o["bounds"] as JObject;
@@ -177,8 +192,10 @@ public sealed class ContentPack
         {
             Vector3? center = Vec3(bounds["center"]);
             Vector3? size = Vec3(bounds["size"]);
-            if (center.HasValue) def.BoundsCenter = center.Value;
-            if (size.HasValue) def.BoundsSize = size.Value;
+            if (center.HasValue)
+                def.BoundsCenter = center.Value;
+            if (size.HasValue)
+                def.BoundsSize = size.Value;
             def.BoundsAuto = !center.HasValue && !size.HasValue;
         }
 
@@ -187,19 +204,22 @@ public sealed class ContentPack
         {
             def.ClearDonorVisual = Bool(visual, "clearDonor", true);
             def.FitInteraction = Bool(visual, "fitInteraction", true);
-            foreach (JObject mesh in Children(visual, "meshes")) def.Meshes.Add(ParseMesh(mesh));
+            foreach (JObject mesh in Children(visual, "meshes"))
+                def.Meshes.Add(ParseMesh(mesh));
         }
         def.SocketsDeclared = o["sockets"] != null;
         foreach (JObject socket in Children(o, "sockets"))
         {
-            def.Sockets.Add(new SocketDef
-            {
-                Id = (byte)Num(socket, "id", 0),
-                Type = Str(socket, "type") ?? "item",
-                Position = Vec3(socket["position"]) ?? Vector3.zero,
-                Facing = Vec3(socket["facing"]),
-                Relayed = Bool(socket, "relayed", false)
-            });
+            def.Sockets.Add(
+                new SocketDef
+                {
+                    Id = (byte)Num(socket, "id", 0),
+                    Type = Str(socket, "type") ?? "item",
+                    Position = Vec3(socket["position"]) ?? Vector3.zero,
+                    Facing = Vec3(socket["facing"]),
+                    Relayed = Bool(socket, "relayed", false),
+                }
+            );
         }
         ParseCost(o["cost"] as JObject, def.Cost);
         return def;
@@ -221,14 +241,18 @@ public sealed class ContentPack
             Font = Str(o, "font"),
             TextColor = ColorOf(o["textColor"]),
             Columns = Mathf.Clamp((int)Num(o, "columns", 16), 4, 64),
-            Speed = Mathf.Clamp((float)Num(o, "speed", 6), 0f, 40f)
+            Speed = Mathf.Clamp((float)Num(o, "speed", 6), 0f, 40f),
         };
     }
 
     private static ContentResearchDef ParseResearch(JObject o, ContentPack pack)
     {
         ushort id = (ushort)Num(o, "id", 0);
-        if (id == 0) { pack.Problems.Add("research with no id skipped"); return null; }
+        if (id == 0)
+        {
+            pack.Problems.Add("research with no id skipped");
+            return null;
+        }
         var def = new ContentResearchDef
         {
             Id = id,
@@ -236,36 +260,44 @@ public sealed class ContentPack
             Hidden = Bool(o, "hidden", false),
             GrantedBy = (ushort)Num(o, "grantedBy", 0),
             GrantedByName = Str(o, "grantedByName"),
-            Position = Vec2(o["position"]) ?? new Vector2Int(0, 0)
+            Position = Vec2(o["position"]) ?? new Vector2Int(0, 0),
         };
         if (!def.Hidden && o["position"] == null)
             pack.Problems.Add(def.Name + ": position must be [x, y], defaulting to 0,0");
         var requires = o["requires"] as JArray;
-        if (requires != null) def.Requires.AddRange(requires.Select(t => t.ToObject<ushort>()));
+        if (requires != null)
+            def.Requires.AddRange(requires.Select(t => t.ToObject<ushort>()));
         var parts = o["parts"] as JArray;
-        if (parts != null) def.Parts.AddRange(parts.Select(t => (string)t));
+        if (parts != null)
+            def.Parts.AddRange(parts.Select(t => (string)t));
         var features = o["features"] as JArray;
-        if (features != null) def.Features.AddRange(features.Select(t => (string)t));
+        if (features != null)
+            def.Features.AddRange(features.Select(t => (string)t));
         ParseCost(o["cost"] as JObject, def.Cost);
         return def;
     }
 
     private static void ParseCost(JObject o, Dictionary<uint, int> cost)
     {
-        if (o == null) return;
+        if (o == null)
+            return;
         foreach (var pair in o)
-            if (uint.TryParse(pair.Key, out uint item)) cost[item] = pair.Value.ToObject<int>();
+            if (uint.TryParse(pair.Key, out uint item))
+                cost[item] = pair.Value.ToObject<int>();
     }
 
     private static IEnumerable<JObject> Children(JObject o, string name)
     {
-        if (o == null) yield break;
+        if (o == null)
+            yield break;
         var array = o[name] as JArray;
-        if (array == null) yield break;
+        if (array == null)
+            yield break;
         foreach (var token in array)
         {
             var child = token as JObject;
-            if (child != null) yield return child;
+            if (child != null)
+                yield return child;
         }
     }
 
@@ -290,26 +322,35 @@ public sealed class ContentPack
     private static Vector3? Vec3(JToken token)
     {
         var array = token as JArray;
-        if (array == null || array.Count < 3) return null;
+        if (array == null || array.Count < 3)
+            return null;
         return new Vector3((float)array[0], (float)array[1], (float)array[2]);
     }
 
     private static Vector2Int? Vec2(JToken token)
     {
         var array = token as JArray;
-        if (array == null || array.Count < 2) return null;
+        if (array == null || array.Count < 2)
+            return null;
         return new Vector2Int((int)array[0], (int)array[1]);
     }
 
     private static Color? ColorOf(JToken token)
     {
         var array = token as JArray;
-        if (array == null || array.Count < 3) return null;
+        if (array == null || array.Count < 3)
+            return null;
         return new Color((float)array[0], (float)array[1], (float)array[2], array.Count > 3 ? (float)array[3] : 1f);
     }
 }
 
-public enum ContentLogLevel { Trace, Info, Warn, Error }
+public enum ContentLogLevel
+{
+    Trace,
+    Info,
+    Warn,
+    Error,
+}
 
 // Thin wrapper over MelonLogger.
 public static class ContentLog
@@ -319,28 +360,41 @@ public static class ContentLog
     public static ContentLogLevel ConsoleFloor = ContentLogLevel.Warn;
 
     public static void Trace(string scope, string message) => Write(ContentLogLevel.Trace, scope, message);
+
     public static void Info(string scope, string message) => Write(ContentLogLevel.Info, scope, message);
+
     public static void Warn(string scope, string message) => Write(ContentLogLevel.Warn, scope, message);
+
     public static void Error(string scope, string message) => Write(ContentLogLevel.Error, scope, message);
-    public static void Error(string scope, string message, Exception error) => Write(ContentLogLevel.Error, scope, message + " :: " + error);
+
+    public static void Error(string scope, string message, Exception error) =>
+        Write(ContentLogLevel.Error, scope, message + " :: " + error);
 
     public static bool Once(string scope, string key, ContentLogLevel level, string message)
     {
         string display = scope + "/" + key;
-        if (!OnceKeys.Add(level + "|" + display)) return false;
+        if (!OnceKeys.Add(level + "|" + display))
+            return false;
         Write(level, display, message);
         return true;
     }
 
     private static void Write(ContentLogLevel level, string scope, string message)
     {
-        if (level < ConsoleFloor) return;
+        if (level < ConsoleFloor)
+            return;
         string text = scope + ": " + message;
         switch (level)
         {
-            case ContentLogLevel.Error: MelonLoader.MelonLogger.Error(text); break;
-            case ContentLogLevel.Warn: MelonLoader.MelonLogger.Warning(text); break;
-            default: MelonLoader.MelonLogger.Msg(text); break;
+            case ContentLogLevel.Error:
+                MelonLoader.MelonLogger.Error(text);
+                break;
+            case ContentLogLevel.Warn:
+                MelonLoader.MelonLogger.Warning(text);
+                break;
+            default:
+                MelonLoader.MelonLogger.Msg(text);
+                break;
         }
     }
 }

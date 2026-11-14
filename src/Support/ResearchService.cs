@@ -34,7 +34,8 @@ public static class ResearchService
     private static readonly List<ResearchSettings> Added = new List<ResearchSettings>();
     private static readonly Dictionary<ushort, ushort> Grants = new Dictionary<ushort, ushort>();
     private static readonly Dictionary<ushort, PendingGrant> PendingGrants = new Dictionary<ushort, PendingGrant>();
-    private static readonly Dictionary<ResearchSettings, List<PartSettings>> AddedUnlocks = new Dictionary<ResearchSettings, List<PartSettings>>();
+    private static readonly Dictionary<ResearchSettings, List<PartSettings>> AddedUnlocks =
+        new Dictionary<ResearchSettings, List<PartSettings>>();
     private static float _nextGrant;
     private static ResearchNetworkedState _state;
     private static ResearchSettingsList _appliedList;
@@ -60,26 +61,36 @@ public static class ResearchService
         var list = Resources.FindObjectsOfTypeAll<ResearchSettingsList>().FirstOrDefault();
         if (list == null || list.list == null)
         {
-            NativeServices.Warn(Scope, "research settings list not found yet, custom techs will retry on the next tick");
+            NativeServices.Warn(
+                Scope,
+                "research settings list not found yet, custom techs will retry on the next tick"
+            );
             return;
         }
         Revert();
         _appliedList = list;
         var ids = (materialized ?? (IReadOnlyList<TechSpec>)Array.Empty<TechSpec>())
-            .Select(s => s?.Id ?? (ushort)0).ToList();
-        var plan = TechRules.PlanApply(ids,
-            list.list.Where(s => s != null).Select(s => s.id));
+            .Select(s => s?.Id ?? (ushort)0)
+            .ToList();
+        var plan = TechRules.PlanApply(ids, list.list.Where(s => s != null).Select(s => s.id));
         for (int i = 0; i < ids.Count; i++)
         {
             TechSpec spec = materialized[i];
-            if (spec == null) continue;
+            if (spec == null)
+                continue;
             if (!plan[i])
             {
                 NativeServices.Warn(Scope, spec.Name + ": research id " + spec.Id + " already taken, skipped");
                 continue;
             }
-            try { ApplyOne(spec, list); }
-            catch (Exception error) { NativeServices.Error(Scope, (spec?.Name ?? "?") + ": research apply failed", error); }
+            try
+            {
+                ApplyOne(spec, list);
+            }
+            catch (Exception error)
+            {
+                NativeServices.Error(Scope, (spec?.Name ?? "?") + ": research apply failed", error);
+            }
         }
         ResearchLayout.Settle(list);
         _applied = true;
@@ -96,8 +107,10 @@ public static class ResearchService
         foreach (string name in spec.UnlockParts ?? Enumerable.Empty<string>())
         {
             PartSettings resolved = PartResolver?.Invoke(name);
-            if (resolved == null) NativeServices.Warn(Scope, spec.Name + ": unlocked part " + name + " not found");
-            else if (!parts.Contains(resolved)) parts.Add(resolved);
+            if (resolved == null)
+                NativeServices.Warn(Scope, spec.Name + ": unlocked part " + name + " not found");
+            else if (!parts.Contains(resolved))
+                parts.Add(resolved);
         }
         var requirements = new List<ResearchSettings>();
         foreach (ushort required in spec.Requires ?? Enumerable.Empty<ushort>())
@@ -105,12 +118,19 @@ public static class ResearchService
             ResearchSettings found = list.list.FirstOrDefault(s => s != null && s.id == required);
             if (found == null)
             {
-                NativeServices.Warn(Scope, spec.Name + ": required tech " + required + " not found, this node would sit at the root of the tree");
+                NativeServices.Warn(
+                    Scope,
+                    spec.Name
+                        + ": required tech "
+                        + required
+                        + " not found, this node would sit at the root of the tree"
+                );
                 continue;
             }
             requirements.Add(found);
         }
-        var features = spec.UnlockFeatures ?? (IReadOnlyList<ResearchUnlockableFeature>)Array.Empty<ResearchUnlockableFeature>();
+        var features =
+            spec.UnlockFeatures ?? (IReadOnlyList<ResearchUnlockableFeature>)Array.Empty<ResearchUnlockableFeature>();
         var settings = ScriptableObject.CreateInstance<ResearchSettings>();
         // Failure rollback scope: a throw anywhere below must not leave an
         // untracked ScriptableObject, a registered-but-untracked list entry,
@@ -130,9 +150,8 @@ public static class ResearchService
             // resourceCost is Items.Model.ItemInstance[]; Items is not a compile
             // reference, so the empty array is injected through reflection. Leave
             // the field untouched if the type cannot be resolved.
-            Array emptyCost = ItemCatalog.ItemInstanceType != null
-                ? Array.CreateInstance(ItemCatalog.ItemInstanceType, 0)
-                : null;
+            Array emptyCost =
+                ItemCatalog.ItemInstanceType != null ? Array.CreateInstance(ItemCatalog.ItemInstanceType, 0) : null;
             if (emptyCost != null)
                 AccessTools.Field(typeof(ResearchSettings), "resourceCost").SetValue(settings, emptyCost);
             settings.positionInTechTree = spec.Position;
@@ -147,17 +166,23 @@ public static class ResearchService
             if (grantedBy == 0 && !string.IsNullOrEmpty(spec.GrantedByName))
             {
                 nativeTech = list.list.FirstOrDefault(s => s != null && s.techName == spec.GrantedByName);
-                if (nativeTech != null) grantedBy = nativeTech.id;
-                else PendingGrants[spec.Id] = new PendingGrant { TechName = spec.GrantedByName, Parts = parts };
+                if (nativeTech != null)
+                    grantedBy = nativeTech.id;
+                else
+                    PendingGrants[spec.Id] = new PendingGrant { TechName = spec.GrantedByName, Parts = parts };
             }
-            if (grantedBy != 0) Grants[spec.Id] = grantedBy;
+            if (grantedBy != 0)
+                Grants[spec.Id] = grantedBy;
             if (nativeTech != null)
             {
                 mergedTech = nativeTech;
                 mergedBefore = nativeTech.unlockedParts;
                 MergeUnlocks(nativeTech, parts);
             }
-            NativeServices.Info(Scope, spec.Name + ": added as tech " + spec.Id + " unlocking " + parts.Count + " parts");
+            NativeServices.Info(
+                Scope,
+                spec.Name + ": added as tech " + spec.Id + " unlocking " + parts.Count + " parts"
+            );
         }
         catch
         {
@@ -168,7 +193,8 @@ public static class ResearchService
             UnityEngine.Object.DestroyImmediate(settings);
             Grants.Remove(spec.Id);
             PendingGrants.Remove(spec.Id);
-            if (mergedTech != null) mergedTech.unlockedParts = mergedBefore;
+            if (mergedTech != null)
+                mergedTech.unlockedParts = mergedBefore;
             // AddedUnlocks keeps the merge record intentionally: its entries
             // are matched by reference against the live array at Revert, so a
             // rolled-back merge leaves only inert entries cleared next cycle.
@@ -180,14 +206,15 @@ public static class ResearchService
     // exactly what was added so Revert removes only our contributions.
     private static void MergeUnlocks(ResearchSettings tech, List<PartSettings> parts)
     {
-        if (tech == null || parts == null || parts.Count == 0) return;
+        if (tech == null || parts == null || parts.Count == 0)
+            return;
         List<PartSettings> merged = TechRules.MergeAdditions(tech.unlockedParts, parts);
-        if (merged.Count == 0) return;
+        if (merged.Count == 0)
+            return;
         if (!AddedUnlocks.TryGetValue(tech, out List<PartSettings> ours))
             AddedUnlocks[tech] = ours = new List<PartSettings>();
         ours.AddRange(merged);
-        tech.unlockedParts = (tech.unlockedParts ?? Array.Empty<PartSettings>())
-            .Concat(merged).ToArray();
+        tech.unlockedParts = (tech.unlockedParts ?? Array.Empty<PartSettings>()).Concat(merged).ToArray();
     }
 
     // Removes only what this service added: tracked ResearchSettings entries
@@ -198,11 +225,13 @@ public static class ResearchService
     {
         ResearchSettingsList list = _appliedList;
         if (list?.list != null)
-            foreach (ResearchSettings settings in Added) list.list.Remove(settings);
+            foreach (ResearchSettings settings in Added)
+                list.list.Remove(settings);
         // The service owns these HideAndDontSave instances; destroy them so
         // repeated Apply/Revert cycles do not leak ScriptableObjects.
         foreach (ResearchSettings settings in Added)
-            if (settings != null) UnityEngine.Object.Destroy(settings);
+            if (settings != null)
+                UnityEngine.Object.Destroy(settings);
         Added.Clear();
         Grants.Clear();
         PendingGrants.Clear();
@@ -227,37 +256,45 @@ public static class ResearchService
             _nextGrant = Time.unscaledTime + GrantInterval;
             Apply(_pending);
         }
-        if (Time.unscaledTime < _nextGrant) return;
+        if (Time.unscaledTime < _nextGrant)
+            return;
         _nextGrant = Time.unscaledTime + GrantInterval;
         ResolvePendingGrants();
-        if (Grants.Count == 0 || !NativeServices.IsServer) return;
+        if (Grants.Count == 0 || !NativeServices.IsServer)
+            return;
         if (_state == null)
         {
             _state = FindState();
-            if (_state == null) return;
+            if (_state == null)
+                return;
         }
         foreach (var grant in Grants)
             if (TechRules.GrantDue(_state.IsResearched(grant.Value), _state.IsResearched(grant.Key)))
                 _state.ServerMarkResearchAsDone(grant.Key);
     }
 
-    private static ResearchNetworkedState FindState()
-        => UnityEngine.Object.FindFirstObjectByType<ResearchNetworkedState>();
+    private static ResearchNetworkedState FindState() =>
+        UnityEngine.Object.FindFirstObjectByType<ResearchNetworkedState>();
 
     // grantedByName techs that were absent at apply time are retried here so
     // a prerequisite added to the list later still produces a grant.
     private static void ResolvePendingGrants()
     {
-        if (PendingGrants.Count == 0 || _appliedList?.list == null) return;
+        if (PendingGrants.Count == 0 || _appliedList?.list == null)
+            return;
         foreach (var pair in PendingGrants.ToList())
         {
-            ResearchSettings tech = _appliedList.list.FirstOrDefault(s => s != null && s.techName == pair.Value.TechName);
-            if (tech == null) continue;
+            ResearchSettings tech = _appliedList.list.FirstOrDefault(s =>
+                s != null && s.techName == pair.Value.TechName
+            );
+            if (tech == null)
+                continue;
             Grants[pair.Key] = tech.id;
             PendingGrants.Remove(pair.Key);
             // Late discovery must produce the same visible preview as an
             // early one: merge our parts into the prerequisite's unlocks.
-            if (pair.Value.Parts != null) MergeUnlocks(tech, pair.Value.Parts);
+            if (pair.Value.Parts != null)
+                MergeUnlocks(tech, pair.Value.Parts);
         }
     }
 }
@@ -269,31 +306,41 @@ internal static class ResearchLayout
 {
     public static void Settle(ResearchSettingsList list)
     {
-        if (list?.list == null) return;
+        if (list?.list == null)
+            return;
         var shown = list.list.Where(IsShown).ToList();
         foreach (var tech in ResearchService.All.Where(IsShown).OrderBy(t => t.id).ToList())
         {
-            if (Free(tech.positionInTechTree, tech, shown)) continue;
-            int minX = tech.requirements != null && tech.requirements.Length != 0
-                ? tech.requirements.Where(IsShown).Select(r => r.positionInTechTree.x + 1).DefaultIfEmpty(0).Max()
-                : 0;
+            if (Free(tech.positionInTechTree, tech, shown))
+                continue;
+            int minX =
+                tech.requirements != null && tech.requirements.Length != 0
+                    ? tech.requirements.Where(IsShown).Select(r => r.positionInTechTree.x + 1).DefaultIfEmpty(0).Max()
+                    : 0;
             Vector2Int? best = null;
             float bestScore = float.MaxValue;
             for (int x = minX; x <= 7; x++)
             for (int y = 0; y <= 6; y++)
             {
                 var cell = new Vector2Int(x, y);
-                if (!Free(cell, tech, shown)) continue;
-                float score = Mathf.Abs(x - tech.positionInTechTree.x) * 1.5f + Mathf.Abs(y - tech.positionInTechTree.y);
-                if (score < bestScore) { best = cell; bestScore = score; }
+                if (!Free(cell, tech, shown))
+                    continue;
+                float score =
+                    Mathf.Abs(x - tech.positionInTechTree.x) * 1.5f + Mathf.Abs(y - tech.positionInTechTree.y);
+                if (score < bestScore)
+                {
+                    best = cell;
+                    bestScore = score;
+                }
             }
-            if (best.HasValue) tech.positionInTechTree = best.Value;
+            if (best.HasValue)
+                tech.positionInTechTree = best.Value;
         }
     }
 
-    internal static bool IsShown(ResearchSettings settings)
-        => settings != null && settings.availableInDemo && !settings.hideFromTechTree;
+    internal static bool IsShown(ResearchSettings settings) =>
+        settings != null && settings.availableInDemo && !settings.hideFromTechTree;
 
-    private static bool Free(Vector2Int cell, ResearchSettings tech, List<ResearchSettings> shown)
-        => shown.All(other => other == tech || other.positionInTechTree != cell);
+    private static bool Free(Vector2Int cell, ResearchSettings tech, List<ResearchSettings> shown) =>
+        shown.All(other => other == tech || other.positionInTechTree != cell);
 }

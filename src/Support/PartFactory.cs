@@ -34,7 +34,8 @@ public static class PartFactory
 
     public static PartSettings Build(PartSpec spec, PartSettings donor)
     {
-        if (spec == null) throw new ArgumentNullException(nameof(spec));
+        if (spec == null)
+            throw new ArgumentNullException(nameof(spec));
         if (donor == null || donor.part == null)
             throw new InvalidOperationException("donor part settings or prefab is missing");
 
@@ -57,8 +58,10 @@ public static class PartFactory
         }
         catch
         {
-            if (settings != null) UnityEngine.Object.DestroyImmediate(settings);
-            if (prefab != null) UnityEngine.Object.DestroyImmediate(prefab);
+            if (settings != null)
+                UnityEngine.Object.DestroyImmediate(settings);
+            if (prefab != null)
+                UnityEngine.Object.DestroyImmediate(prefab);
             throw;
         }
     }

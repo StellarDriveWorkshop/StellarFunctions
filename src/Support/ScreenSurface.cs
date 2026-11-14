@@ -26,9 +26,14 @@ public class ScreenSurface : MonoBehaviour
 
     // Opt-in layout for literal single lines. Prefab values travel with the
     // visual clone while the layout and ticker position start fresh.
-    [SerializeField] private float _preferredSize;
-    [SerializeField] private float _minimumSize;
-    [SerializeField] private float _usableWidth;
+    [SerializeField]
+    private float _preferredSize;
+
+    [SerializeField]
+    private float _minimumSize;
+
+    [SerializeField]
+    private float _usableWidth;
     private MeasuredScreenLine _line;
     private Func<string, float, float> _measure;
     private string _lineContent;
@@ -64,7 +69,8 @@ public class ScreenSurface : MonoBehaviour
         ScreenProfiler.End(ScreenProfileBucket.PullFrame, pullStart);
         // Measured screens wait for the visual and its TMP child to finish
         // initialization. Legacy channels still present immediately.
-        if (_preferredSize <= 0f) Present(0f);
+        if (_preferredSize <= 0f)
+            Present(0f);
     }
 
     private void OnDestroy() => ScreenProfiler.SurfaceDestroyed(_preferredSize > 0f);
@@ -82,7 +88,8 @@ public class ScreenSurface : MonoBehaviour
             }
             Present(Mathf.Min(Time.unscaledDeltaTime, 0.25f));
         }
-        else ScreenProfiler.Exit(ScreenProfileExit.HolderSkip);
+        else
+            ScreenProfiler.Exit(ScreenProfileExit.HolderSkip);
         ScreenProfiler.End(ScreenProfileBucket.Update, updateStart);
     }
 
@@ -103,7 +110,8 @@ public class ScreenSurface : MonoBehaviour
             ScreenProfiler.End(ScreenProfileBucket.Present, presentStart);
             return;
         }
-        if (_frame.TextColor is Color color && _text.color != color) _text.color = color;
+        if (_frame.TextColor is Color color && _text.color != color)
+            _text.color = color;
         string content = _frame.Text ?? string.Empty;
         if (_preferredSize > 0f)
         {
@@ -117,11 +125,16 @@ public class ScreenSurface : MonoBehaviour
         {
             FitText();
             string ticker = content + "     ";
-            if (content != _scrollContent) { _offset = 0f; _scrollContent = content; }
+            if (content != _scrollContent)
+            {
+                _offset = 0f;
+                _scrollContent = content;
+            }
             _offset = ScreenText.Advance(_offset, delta, _speed, ticker.Length);
             shown = ScreenText.Mono(ScreenText.Window(ticker, _columns, _offset));
         }
-        else shown = content;
+        else
+            shown = content;
         if (shown == _shown)
         {
             ScreenProfiler.Exit(ScreenProfileExit.Unchanged);
@@ -162,8 +175,12 @@ public class ScreenSurface : MonoBehaviour
             _lineRect = rect;
             _lineFont = _text.font;
             long buildStart = ScreenProfiler.Begin(ScreenProfileBucket.LineBuild);
-            _line = new MeasuredScreenLine(MeasuredScreenLine.SingleLine(content),
-                _preferredSize, _minimumSize, _measure);
+            _line = new MeasuredScreenLine(
+                MeasuredScreenLine.SingleLine(content),
+                _preferredSize,
+                _minimumSize,
+                _measure
+            );
             ScreenProfiler.End(ScreenProfileBucket.LineBuild, buildStart);
         }
 
@@ -188,7 +205,8 @@ public class ScreenSurface : MonoBehaviour
 
     private float MeasureLine(string content, float size)
     {
-        if (content.Length == 0) return 0f;
+        if (content.Length == 0)
+            return 0f;
         _measured = true;
         long measureStart = ScreenProfiler.Begin(ScreenProfileBucket.MeasureLine);
         _text.fontSize = size;
@@ -206,12 +224,12 @@ public class ScreenSurface : MonoBehaviour
             for (int i = 0; i < info.characterCount; i++)
             {
                 var glyph = info.characterInfo[i];
-                if (!glyph.isVisible) continue;
+                if (!glyph.isVisible)
+                    continue;
                 extentX = Mathf.Max(extentX, Mathf.Max(centerX - glyph.bottomLeft.x, glyph.topRight.x - centerX));
                 extentY = Mathf.Max(extentY, Mathf.Max(centerY - glyph.bottomLeft.y, glyph.topRight.y - centerY));
             }
-            float demand = Mathf.Max(2f * extentX / (_lineRect.width * _usableWidth),
-                2f * extentY / _lineRect.height);
+            float demand = Mathf.Max(2f * extentX / (_lineRect.width * _usableWidth), 2f * extentY / _lineRect.height);
             // Advances and line height can overflow before the ink does.
             return _text.firstOverflowCharacterIndex < 0 ? demand : Mathf.Max(demand, 1.001f);
         }
@@ -227,7 +245,8 @@ public class ScreenSurface : MonoBehaviour
     // Measure once at the smallest auto-size so the ticker fills the display.
     private void FitText()
     {
-        if (_locked) return;
+        if (_locked)
+            return;
         _locked = true;
         _text.enableAutoSizing = true;
         _text.text = ScreenText.Mono(new string('W', _columns));
