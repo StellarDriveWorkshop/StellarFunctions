@@ -18,8 +18,12 @@ public static class PlayerAccess
         get
         {
             if (_localState == null)
-                _localState = UnityEngine.Object.FindObjectsByType<PlayerNetworkState>(FindObjectsSortMode.None)
+            {
+                _localState = UnityEngine
+                    .Object.FindObjectsByType<PlayerNetworkState>(FindObjectsSortMode.None)
                     .FirstOrDefault(s => s != null && s.IsOwner);
+            }
+
             return _localState;
         }
     }
@@ -31,12 +35,19 @@ public static class PlayerAccess
         get
         {
             var players = Support.NativeServices.CachedService<PlayersServerTracker>();
-            if (players?.ActivePlayers == null || players.ActivePlayers.Count == 0) return null;
+            if (players?.ActivePlayers == null || players.ActivePlayers.Count == 0)
+            {
+                return null;
+            }
+
             PlayerNetworkState state = LocalNetworkState;
             if (state != null)
             {
                 var match = players.ActivePlayers.FirstOrDefault(p => p != null && p.Id == state.Id);
-                if (match != null) return match;
+                if (match != null)
+                {
+                    return match;
+                }
             }
             return players.ActivePlayers.FirstOrDefault(p => p != null && p.IsHost) ?? players.ActivePlayers[0];
         }
@@ -58,7 +69,13 @@ public static class PartLookup
     public static PartSettings ById(ushort id)
     {
         foreach (var settings in Resources.FindObjectsOfTypeAll<PartSettings>())
-            if (settings != null && settings.id == id) return settings;
+        {
+            if (settings != null && settings.id == id)
+            {
+                return settings;
+            }
+        }
+
         return null;
     }
 }

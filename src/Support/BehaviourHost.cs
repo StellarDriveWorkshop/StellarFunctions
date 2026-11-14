@@ -42,7 +42,11 @@ public static class BehaviourHost
 
     public static void Bind(ushort partId, IPartBehaviour behaviour)
     {
-        if (behaviour == null) return;
+        if (behaviour == null)
+        {
+            return;
+        }
+
         Behaviours[partId] = behaviour;
         EnsurePatch();
         Safe(behaviour, "behaviour registration", behaviour.OnRegistered);
@@ -50,21 +54,27 @@ public static class BehaviourHost
 
     public static void Unbind(ushort partId) => Behaviours.Remove(partId);
 
-    public static IPartBehaviour Of(ushort partId)
-        => Behaviours.TryGetValue(partId, out IPartBehaviour behaviour) ? behaviour : null;
+    public static IPartBehaviour Of(ushort partId) =>
+        Behaviours.TryGetValue(partId, out IPartBehaviour behaviour) ? behaviour : null;
 
     public static void WorldEnter()
     {
         Tracking.Clear();
         Budget.Reset();
-        foreach (IPartBehaviour behaviour in Behaviours.Values) Safe(behaviour, "world enter", behaviour.OnWorldEnter);
+        foreach (IPartBehaviour behaviour in Behaviours.Values)
+        {
+            Safe(behaviour, "world enter", behaviour.OnWorldEnter);
+        }
     }
 
     public static void WorldExit()
     {
         Tracking.Clear();
         Budget.Reset();
-        foreach (IPartBehaviour behaviour in Behaviours.Values) Safe(behaviour, "world exit", behaviour.OnWorldExit);
+        foreach (IPartBehaviour behaviour in Behaviours.Values)
+        {
+            Safe(behaviour, "world exit", behaviour.OnWorldExit);
+        }
     }
 
     public static bool PartStillExists(uint shipId, ushort partId)
@@ -77,7 +87,11 @@ public static class BehaviourHost
 
     private static void EnsurePatch()
     {
-        if (_patched) return;
+        if (_patched)
+        {
+            return;
+        }
+
         var method = AccessTools.Method(typeof(TrackedShipServer), "UpdateParts", new Type[] { typeof(float) }, null);
         if (method == null)
         {
@@ -98,8 +112,7 @@ public static class BehaviourHost
                 return;
             }
             _harmony = new HarmonyLib.Harmony("stellarfunctions.support.runtime");
-            _harmony.Patch(method,
-                postfix: new HarmonyMethod(typeof(BehaviourHost), nameof(AfterUpdateParts)));
+            _harmony.Patch(method, postfix: new HarmonyMethod(typeof(BehaviourHost), nameof(AfterUpdateParts)));
         }
         catch (Exception error)
         {
@@ -115,8 +128,14 @@ public static class BehaviourHost
     // patched; a later Bind re-installs through EnsurePatch.
     public static void Uninstall()
     {
-        try { _harmony?.UnpatchSelf(); }
-        catch (Exception error) { NativeServices.Error(Scope, "server tick hook removal failed", error); }
+        try
+        {
+            _harmony?.UnpatchSelf();
+        }
+        catch (Exception error)
+        {
+            NativeServices.Error(Scope, "server tick hook removal failed", error);
+        }
         _harmony = null;
         _patched = false;
     }
@@ -126,25 +145,51 @@ public static class BehaviourHost
     // per-ship update cheap on large servers.
     public static void AfterUpdateParts(TrackedShipServer __instance, float deltaTime)
     {
-        if (__instance == null) return;
+        if (__instance == null)
+        {
+            return;
+        }
+
         uint shipId = ((IShipStateRead)__instance).Id;
         var probe = ContentProbe;
-        if (probe == null) return;
+        if (probe == null)
+        {
+            return;
+        }
+
         bool hasContent = false;
         foreach (StatefulPart candidate in __instance.StatefulParts)
-            if (candidate?.Settings != null && probe(candidate.Settings.id)) { hasContent = true; break; }
-        if (!hasContent && !Tracking.HasPending(shipId)) return;
+        {
+            if (candidate?.Settings != null && probe(candidate.Settings.id))
+            {
+                hasContent = true;
+                break;
+            }
+        }
+
+        if (!hasContent && !Tracking.HasPending(shipId))
+        {
+            return;
+        }
 
         var present = new HashSet<ushort>();
         // Snapshot like the original PartsOn: a callback that mutates the
         // live StatefulParts collection must not corrupt this enumeration.
         foreach (StatefulPart part in __instance.StatefulParts.ToList())
         {
-            if (part?.Settings == null || !probe(part.Settings.id)) continue;
+            if (part?.Settings == null || !probe(part.Settings.id))
+            {
+                continue;
+            }
+
             ushort contentId = part.Settings.id;
             present.Add(part.Id);
             IPartBehaviour behaviour = Of(contentId);
-            if (behaviour == null) continue;
+            if (behaviour == null)
+            {
+                continue;
+            }
+
             LivePart live = new LivePart((IShipStateWrite)(object)__instance, shipId, part.Id, part);
             if (Tracking.Mark(shipId, part.Id))
             {
@@ -152,9 +197,19 @@ public static class BehaviourHost
                 Safe(behaviour, "part added", () => behaviour.OnPartAdded(added));
                 NativeServices.Trace(behaviour.Scope, "placed on ship " + shipId + " as part " + part.Id);
             }
-            if (Budget.Muted(contentId)) continue;
-            try { behaviour.ServerTick(live, deltaTime); }
-            catch (Exception error) { TickFailed(contentId, behaviour.Scope, error); }
+            if (Budget.Muted(contentId))
+            {
+                continue;
+            }
+
+            try
+            {
+                behaviour.ServerTick(live, deltaTime);
+            }
+            catch (Exception error)
+            {
+                TickFailed(contentId, behaviour.Scope, error);
+            }
         }
         foreach (ushort gone in Tracking.CollectRemoved(shipId, present))
         {
@@ -182,7 +237,13 @@ public static class BehaviourHost
 
     private static void Safe(IPartBehaviour behaviour, string what, Action call)
     {
-        try { call(); }
-        catch (Exception error) { NativeServices.Error(behaviour.Scope, what + " failed", error); }
+        try
+        {
+            call();
+        }
+        catch (Exception error)
+        {
+            NativeServices.Error(behaviour.Scope, what + " failed", error);
+        }
     }
 }

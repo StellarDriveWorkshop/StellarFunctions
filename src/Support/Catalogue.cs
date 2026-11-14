@@ -27,22 +27,32 @@ public static class Catalogue
     // treating a handled failure as success.
     public static bool Install()
     {
-        if (_installed) return true;
+        if (_installed)
+        {
+            return true;
+        }
+
         _partsDict = AccessTools.Field(typeof(PartSettingsProvider), "_partsDict");
         var method = AccessTools.Method(typeof(PartSettingsProvider), "EnsureDictIsCached");
         if (_partsDict == null || method == null)
         {
-            NativeServices.Error(Scope, "PartSettingsProvider._partsDict/EnsureDictIsCached not found, catalogue injection disabled");
+            NativeServices.Error(
+                Scope,
+                "PartSettingsProvider._partsDict/EnsureDictIsCached not found, catalogue injection disabled"
+            );
             return false;
         }
         try
         {
             var harmony = new HarmonyLib.Harmony("stellarfunctions.support.catalogue");
-            harmony.Patch(method,
+            harmony.Patch(
+                method,
                 prefix: new HarmonyMethod(typeof(Catalogue), nameof(BeforeEnsureDict)),
-                postfix: new HarmonyMethod(typeof(Catalogue), nameof(AfterEnsureDict)));
+                postfix: new HarmonyMethod(typeof(Catalogue), nameof(AfterEnsureDict))
+            );
             var info = HarmonyLib.Harmony.GetPatchInfo(method);
-            bool active = info != null
+            bool active =
+                info != null
                 && info.Prefixes.Any(p => p.owner == harmony.Id)
                 && info.Postfixes.Any(p => p.owner == harmony.Id);
             if (!active)
@@ -63,7 +73,10 @@ public static class Catalogue
 
     public static void Register(PartSettings settings)
     {
-        if (settings != null) Registered[settings.id] = settings;
+        if (settings != null)
+        {
+            Registered[settings.id] = settings;
+        }
     }
 
     // Harmony prefix: make sure every spec is materialized, then cover
@@ -77,26 +90,55 @@ public static class Catalogue
     // Harmony postfix on PartSettingsProvider.EnsureDictIsCached.
     public static void AfterEnsureDict(PartSettingsProvider __instance)
     {
-        if (Registered.Count == 0 || _partsDict == null || __instance == null) return;
-        if (!(_partsDict.GetValue(__instance) is Dictionary<ushort, PartSettings> dict)) return;
+        if (Registered.Count == 0 || _partsDict == null || __instance == null)
+        {
+            return;
+        }
+
+        if (!(_partsDict.GetValue(__instance) is Dictionary<ushort, PartSettings> dict))
+        {
+            return;
+        }
+
         var plan = CatalogueMerge.Plan(dict, Registered);
         if (plan.Conflicts != null)
+        {
             foreach (ushort id in plan.Conflicts)
+            {
                 ReportForeignConflict(__instance, id, dict[id]);
-        if (plan.Merged != null) _partsDict.SetValue(__instance, plan.Merged);
+            }
+        }
+
+        if (plan.Merged != null)
+        {
+            _partsDict.SetValue(__instance, plan.Merged);
+        }
     }
 
     private static void ReportForeignConflict(PartSettingsProvider provider, ushort id, PartSettings foreign)
     {
         string key = (provider != null ? provider.GetHashCode() : 0) + ":" + id;
-        if (!Conflicts.Add(key)) return;
-        NativeServices.Error(Scope, "part id " + id + " resolves to foreign settings '"
-            + (foreign != null ? foreign.name : "null") + "'; keeping foreign entry, ours not injected");
+        if (!Conflicts.Add(key))
+        {
+            return;
+        }
+
+        NativeServices.Error(
+            Scope,
+            "part id "
+                + id
+                + " resolves to foreign settings '"
+                + (foreign != null ? foreign.name : "null")
+                + "'; keeping foreign entry, ours not injected"
+        );
     }
 
     private static void InjectIntoProvider()
     {
         var provider = NativeServices.Service<PartSettingsProvider>();
-        if (provider != null) AfterEnsureDict(provider);
+        if (provider != null)
+        {
+            AfterEnsureDict(provider);
+        }
     }
 }

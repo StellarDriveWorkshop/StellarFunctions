@@ -26,20 +26,25 @@ public struct ScreenFrame
 // no ownership-token framework yet.
 public static class Screens
 {
-    private static readonly ChannelProviders<GameObject, ScreenFrame> Channels = new ChannelProviders<GameObject, ScreenFrame>();
+    private static readonly ChannelProviders<GameObject, ScreenFrame> Channels =
+        new ChannelProviders<GameObject, ScreenFrame>();
     private static TMP_FontAsset _font;
     private static Mesh _quad;
 
-    public static void Provide(string channel, Func<GameObject, ScreenFrame> source)
-        => Channels.Provide(channel, source);
+    public static void Provide(string channel, Func<GameObject, ScreenFrame> source) =>
+        Channels.Provide(channel, source);
 
-    public static bool Unprovide(string channel, Func<GameObject, ScreenFrame> expected)
-        => Channels.Unprovide(channel, expected);
+    public static bool Unprovide(string channel, Func<GameObject, ScreenFrame> expected) =>
+        Channels.Unprovide(channel, expected);
 
     internal static bool TryGet(string channel, GameObject screen, out ScreenFrame frame)
     {
         frame = default;
-        if (!Channels.TryGetProvider(channel, out var source)) return false;
+        if (!Channels.TryGetProvider(channel, out var source))
+        {
+            return false;
+        }
+
         try
         {
             frame = source(screen);
@@ -50,7 +55,10 @@ public static class Screens
             // Once per channel: a throwing provider must not log at the
             // 10 Hz polling rate.
             if (Channels.MarkProviderError(channel))
+            {
                 NativeServices.Error("screens", "screen " + channel + " failed :: " + error.Message);
+            }
+
             return false;
         }
     }
@@ -60,20 +68,38 @@ public static class Screens
         TMP_FontAsset[] all = Resources.FindObjectsOfTypeAll<TMP_FontAsset>();
         if (!string.IsNullOrEmpty(name))
         {
-            var named = all.FirstOrDefault(f => f != null && string.Equals(f.name, name, StringComparison.OrdinalIgnoreCase));
-            if (named != null) return named;
+            var named = all.FirstOrDefault(f =>
+                f != null && string.Equals(f.name, name, StringComparison.OrdinalIgnoreCase)
+            );
+            if (named != null)
+            {
+                return named;
+            }
         }
-        if (_font != null) return _font;
-        _font = Resources.FindObjectsOfTypeAll<TMP_Text>()
-            .Where(t => t != null && t.font != null)
-            .GroupBy(t => t.font)
-            .OrderByDescending(g => g.Count())
-            .Select(g => g.Key)
-            .FirstOrDefault(f => f.name != null && !f.name.StartsWith("Liberation", StringComparison.OrdinalIgnoreCase))
-            ?? all.FirstOrDefault(f => f != null && !f.name.StartsWith("Liberation", StringComparison.OrdinalIgnoreCase))
+        if (_font != null)
+        {
+            return _font;
+        }
+
+        _font =
+            Resources
+                .FindObjectsOfTypeAll<TMP_Text>()
+                .Where(t => t != null && t.font != null)
+                .GroupBy(t => t.font)
+                .OrderByDescending(g => g.Count())
+                .Select(g => g.Key)
+                .FirstOrDefault(f =>
+                    f.name != null && !f.name.StartsWith("Liberation", StringComparison.OrdinalIgnoreCase)
+                )
+            ?? all.FirstOrDefault(f =>
+                f != null && !f.name.StartsWith("Liberation", StringComparison.OrdinalIgnoreCase)
+            )
             ?? all.FirstOrDefault(f => f != null);
         if (_font != null)
+        {
             NativeServices.Trace("screens", "game font " + _font.name);
+        }
+
         return _font;
     }
 
@@ -84,8 +110,13 @@ public static class Screens
         go.transform.SetParent(parent, false);
         go.transform.localPosition = mesh.Position;
         go.transform.localRotation = Quaternion.Euler(mesh.Euler);
-        BuildLabel(go, mesh.Font, mesh.Text ?? string.Empty,
-            mesh.TextColor ?? mesh.Tint ?? Color.white, new Vector2(mesh.Scale.x, mesh.Scale.y));
+        BuildLabel(
+            go,
+            mesh.Font,
+            mesh.Text ?? string.Empty,
+            mesh.TextColor ?? mesh.Tint ?? Color.white,
+            new Vector2(mesh.Scale.x, mesh.Scale.y)
+        );
         return go;
     }
 
@@ -106,8 +137,13 @@ public static class Screens
         var text = new GameObject("Text", typeof(RectTransform)) { layer = go.layer };
         text.transform.SetParent(go.transform, false);
         text.transform.localPosition = new Vector3(0f, 0f, -0.004f);
-        BuildLabel(text, mesh.Font, string.Empty,
-            mesh.TextColor ?? new Color(0.45f, 0.95f, 1f), new Vector2(mesh.Scale.x * 0.92f, mesh.Scale.y * 0.8f));
+        BuildLabel(
+            text,
+            mesh.Font,
+            string.Empty,
+            mesh.TextColor ?? new Color(0.45f, 0.95f, 1f),
+            new Vector2(mesh.Scale.x * 0.92f, mesh.Scale.y * 0.8f)
+        );
         go.AddComponent<ScreenSurface>();
         return go;
     }
@@ -116,7 +152,11 @@ public static class Screens
     {
         var text = host.AddComponent<TextMeshPro>();
         TMP_FontAsset font = Font(fontName);
-        if (font != null) text.font = font;
+        if (font != null)
+        {
+            text.font = font;
+        }
+
         text.rectTransform.sizeDelta = size;
         text.alignment = TextAlignmentOptions.Center;
         text.textWrappingMode = TextWrappingModes.NoWrap;

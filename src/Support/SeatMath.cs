@@ -15,8 +15,10 @@ public static class SeatMath
     {
         public readonly bool HasAxis;
         public readonly int Axis;
+
         // Signed prefab-space delta to add to the socket position on Axis.
         public readonly float AxisShift;
+
         // >0 requests a mounting pad bridging this distance.
         public readonly float PadDistance;
 
@@ -35,17 +37,38 @@ public static class SeatMath
     // dir*    = negated socket forward in prefab space (the seating probe
     //           direction; dominant axis wins, ties mean no seating)
     public static Plan Evaluate(
-        float localX, float localY, float localZ,
-        float centerX, float centerY, float centerZ,
-        float sizeX, float sizeY, float sizeZ,
-        float dirX, float dirY, float dirZ)
+        float localX,
+        float localY,
+        float localZ,
+        float centerX,
+        float centerY,
+        float centerZ,
+        float sizeX,
+        float sizeY,
+        float sizeZ,
+        float dirX,
+        float dirY,
+        float dirZ
+    )
     {
         int axis = FitMath.DominantAxis(dirX, dirY, dirZ, out float sign);
-        if (axis < 0) return default;
+        if (axis < 0)
+        {
+            return default;
+        }
 
-        float local = axis == 0 ? localX : axis == 1 ? localY : localZ;
-        float center = axis == 0 ? centerX : axis == 1 ? centerY : centerZ;
-        float size = axis == 0 ? sizeX : axis == 1 ? sizeY : sizeZ;
+        float local =
+            axis == 0 ? localX
+            : axis == 1 ? localY
+            : localZ;
+        float center =
+            axis == 0 ? centerX
+            : axis == 1 ? centerY
+            : centerZ;
+        float size =
+            axis == 0 ? sizeX
+            : axis == 1 ? sizeY
+            : sizeZ;
 
         // Half extent is always positive: the legacy signed dot product gave
         // a negative half extent for sockets facing a negative axis, which

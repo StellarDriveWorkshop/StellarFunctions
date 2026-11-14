@@ -19,7 +19,11 @@ internal static class SupportLink
     // only the missing half on the next call.
     public static bool EnsureInstalled()
     {
-        if (_installed) return true;
+        if (_installed)
+        {
+            return true;
+        }
+
         bool catalogue = Catalogue.Install();
         bool menu = MenuCatalog.Install();
         _installed = catalogue && menu;
@@ -30,57 +34,65 @@ internal static class SupportLink
     // contract is support-owned but the pack definition shape is not.
     public static void RegisterDefinition(Content.ContentPartDef def)
     {
-        if (def == null) return;
-        EnsureInstalled();
-        Registration.Register(new PartSpec
+        if (def == null)
         {
-            Id = def.Id,
-            Asset = def.Asset,
-            Label = def.Label,
-            Description = def.Description,
-            Donor = def.Donor,
-            StateClass = def.State,
-            Mass = def.Mass,
-            Snapping = def.Snapping,
-            SnappingDeclared = def.SnappingDeclared,
-            BoundsCenter = def.BoundsCenter,
-            BoundsSize = def.BoundsSize,
-            ClearDonorVisual = def.ClearDonorVisual,
-            BoundsAuto = def.BoundsAuto,
-            SocketsDeclared = def.SocketsDeclared,
-            FitInteraction = def.FitInteraction,
-            Menu = def.Menu,
-            Attached = def.Attached,
-            BuildMenuAfter = def.BuildMenuAfter,
-            Cost = def.Cost,
-            Meshes = def.Meshes.Select(MapMesh).ToList(),
-            Sockets = def.Sockets.Select(MapSocket).ToList()
-        });
+            return;
+        }
+
+        EnsureInstalled();
+        Registration.Register(
+            new PartSpec
+            {
+                Id = def.Id,
+                Asset = def.Asset,
+                Label = def.Label,
+                Description = def.Description,
+                Donor = def.Donor,
+                StateClass = def.State,
+                Mass = def.Mass,
+                Snapping = def.Snapping,
+                SnappingDeclared = def.SnappingDeclared,
+                BoundsCenter = def.BoundsCenter,
+                BoundsSize = def.BoundsSize,
+                ClearDonorVisual = def.ClearDonorVisual,
+                BoundsAuto = def.BoundsAuto,
+                SocketsDeclared = def.SocketsDeclared,
+                FitInteraction = def.FitInteraction,
+                Menu = def.Menu,
+                Attached = def.Attached,
+                BuildMenuAfter = def.BuildMenuAfter,
+                Cost = def.Cost,
+                Meshes = def.Meshes.Select(MapMesh).ToList(),
+                Sockets = def.Sockets.Select(MapSocket).ToList(),
+            }
+        );
     }
 
-    private static MeshSpec MapMesh(Content.MeshDef mesh) => new MeshSpec
-    {
-        Shape = mesh.Shape,
-        DonorPath = mesh.DonorPath,
-        Material = mesh.Material,
-        Position = mesh.Position,
-        Euler = mesh.Euler,
-        Scale = mesh.Scale,
-        Tint = mesh.Tint,
-        Text = mesh.Text,
-        Screen = mesh.Screen,
-        Font = mesh.Font,
-        TextColor = mesh.TextColor,
-        Columns = mesh.Columns,
-        Speed = mesh.Speed
-    };
+    private static MeshSpec MapMesh(Content.MeshDef mesh) =>
+        new MeshSpec
+        {
+            Shape = mesh.Shape,
+            DonorPath = mesh.DonorPath,
+            Material = mesh.Material,
+            Position = mesh.Position,
+            Euler = mesh.Euler,
+            Scale = mesh.Scale,
+            Tint = mesh.Tint,
+            Text = mesh.Text,
+            Screen = mesh.Screen,
+            Font = mesh.Font,
+            TextColor = mesh.TextColor,
+            Columns = mesh.Columns,
+            Speed = mesh.Speed,
+        };
 
-    private static SocketSpec MapSocket(Content.SocketDef socket) => new SocketSpec
-    {
-        Id = socket.Id,
-        Type = socket.Type,
-        Position = socket.Position,
-        Facing = socket.Facing,
-        Relayed = socket.Relayed
-    };
+    private static SocketSpec MapSocket(Content.SocketDef socket) =>
+        new SocketSpec
+        {
+            Id = socket.Id,
+            Type = socket.Type,
+            Position = socket.Position,
+            Facing = socket.Facing,
+            Relayed = socket.Relayed,
+        };
 }

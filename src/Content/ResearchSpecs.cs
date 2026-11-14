@@ -14,17 +14,22 @@ namespace StellarFunctions.Content;
 // used. Support never sees ContentPack or ContentResearchDef.
 public static class ResearchSpecs
 {
-    public static PartSettings ResolvePart(string name)
-        => ContentRegistry.PartByAsset(name)
-           ?? Support.NativeAssets.PartByName(name)
-           ?? (ushort.TryParse(name, out ushort id) ? PartLookup.ById(id) : null);
+    public static PartSettings ResolvePart(string name) =>
+        ContentRegistry.PartByAsset(name)
+        ?? Support.NativeAssets.PartByName(name)
+        ?? (ushort.TryParse(name, out ushort id) ? PartLookup.ById(id) : null);
 
     public static List<TechSpec> FromPacks(IEnumerable<ContentPack> packs)
     {
         var specs = new List<TechSpec>();
         foreach (ContentPack pack in packs ?? Enumerable.Empty<ContentPack>())
+        {
             foreach (ContentResearchDef def in pack.Research)
+            {
                 specs.Add(Map(pack, def));
+            }
+        }
+
         return specs;
     }
 
@@ -33,10 +38,17 @@ public static class ResearchSpecs
         var features = new List<ResearchUnlockableFeature>();
         foreach (string name in def.Features)
         {
-            if (Enum.TryParse(name, true, out ResearchUnlockableFeature feature)
-                && Enum.IsDefined(typeof(ResearchUnlockableFeature), feature))
+            if (
+                Enum.TryParse(name, true, out ResearchUnlockableFeature feature)
+                && Enum.IsDefined(typeof(ResearchUnlockableFeature), feature)
+            )
+            {
                 features.Add(feature);
-            else ContentLog.Warn(pack.Id, def.Name + ": unknown feature " + name);
+            }
+            else
+            {
+                ContentLog.Warn(pack.Id, def.Name + ": unknown feature " + name);
+            }
         }
         return new TechSpec
         {
@@ -48,7 +60,7 @@ public static class ResearchSpecs
             GrantedByName = def.GrantedByName,
             Requires = def.Requires.ToArray(),
             UnlockParts = def.Parts.ToArray(),
-            UnlockFeatures = features
+            UnlockFeatures = features,
         };
     }
 }

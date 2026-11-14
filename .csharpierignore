@@ -1,0 +1,9 @@
+# This pilot formats C# only; leave project and other XML files unchanged.
+*.csproj
+*.props
+*.targets
+*.config
+*.slnx
+*.xml
+*.xaml
+*.axaml

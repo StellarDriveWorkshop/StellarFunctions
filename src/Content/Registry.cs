@@ -10,9 +10,9 @@ using Ships.Interface.Model.State;
 using Ships.Interface.Services;
 using Ships.Interface.Settings;
 using Ships.Services;
+using StellarFunctions.Game;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using StellarFunctions.Game;
 
 namespace StellarFunctions.Content;
 
@@ -26,17 +26,27 @@ public abstract class PartBehaviour
     public string Scope => Def != null ? Def.Asset : GetType().Name;
 
     public virtual Vector2 PanelScale => Vector2.one;
+
     public virtual void OnRegistered() { }
+
     public virtual void OnWorldEnter() { }
+
     public virtual void OnWorldExit() { }
+
     public virtual void OnPartAdded(ContentPart part) { }
+
     public virtual void OnPartRemoved(uint shipId, ushort partId) { }
+
     public virtual void ServerTick(ContentPart part, float deltaTime) { }
+
     public virtual void OnAction(ContentPart part, TrackedPlayerServer player, string action) { }
+
     public virtual string ConfigTitle(ContentPart part) => null;
 
     protected void Trace(string message) => ContentLog.Trace(Scope, message);
+
     protected void Warn(string message) => ContentLog.Warn(Scope, message);
+
     protected void Error(string message) => ContentLog.Error(Scope, message);
 }
 
@@ -48,45 +58,65 @@ public static class ContentRuntime
     private sealed class Adapter : Support.IPartBehaviour
     {
         private readonly PartBehaviour _inner;
+
         public Adapter(PartBehaviour inner) => _inner = inner;
+
         public PartBehaviour Inner => _inner;
         public string Scope => _inner.Scope;
+
         public void OnRegistered() => _inner.OnRegistered();
+
         public void OnWorldEnter() => _inner.OnWorldEnter();
+
         public void OnWorldExit() => _inner.OnWorldExit();
+
         public void OnPartAdded(Support.LivePart part) => _inner.OnPartAdded(Content(part));
+
         public void OnPartRemoved(uint shipId, ushort partId) => _inner.OnPartRemoved(shipId, partId);
+
         public void ServerTick(Support.LivePart part, float deltaTime) => _inner.ServerTick(Content(part), deltaTime);
-        private static ContentPart Content(Support.LivePart part) => new ContentPart
-        {
-            Ship = part.Ship,
-            ShipId = part.ShipId,
-            PartId = part.PartId,
-            Part = part.Part,
-            Def = ContentRegistry.PartDef(part.Part.Settings.id)
-        };
+
+        private static ContentPart Content(Support.LivePart part) =>
+            new ContentPart
+            {
+                Ship = part.Ship,
+                ShipId = part.ShipId,
+                PartId = part.PartId,
+                Part = part.Part,
+                Def = ContentRegistry.PartDef(part.Part.Settings.id),
+            };
     }
 
     public static void Bind(ContentPartDef def, PartBehaviour behaviour)
     {
-        if (def == null || behaviour == null) return;
+        if (def == null || behaviour == null)
+        {
+            return;
+        }
+
         behaviour.Def = def;
         Support.BehaviourHost.Bind(def.Id, new Adapter(behaviour));
     }
 
     public static void Unbind(ushort partId) => Support.BehaviourHost.Unbind(partId);
 
-    public static PartBehaviour Of(ushort partId)
-        => (Support.BehaviourHost.Of(partId) as Adapter)?.Inner;
+    public static PartBehaviour Of(ushort partId) => (Support.BehaviourHost.Of(partId) as Adapter)?.Inner;
 
     public static bool TryResolve(IShipStateWrite ship, ushort partId, out ContentPart resolved)
     {
         resolved = default;
         StatefulPart part = default;
         if (ship == null || !((IShipStateRead)ship).TryGetStatefulPart(partId, out part) || part.Settings == null)
+        {
             return false;
+        }
+
         ContentPartDef def = ContentRegistry.PartDef(part.Settings.id);
-        if (def == null) return false;
+        if (def == null)
+        {
+            return false;
+        }
+
         uint shipId = ((IShipStateRead)ship).Id;
         resolved = new ContentPart
         {
@@ -94,7 +124,7 @@ public static class ContentRuntime
             ShipId = shipId,
             PartId = partId,
             Part = part,
-            Def = def
+            Def = def,
         };
         return true;
     }
@@ -111,19 +141,23 @@ public static class ContentRegistry
     private static readonly List<ContentPack> Loaded = new List<ContentPack>();
     private static readonly List<string> Errors = new List<string>();
     private static readonly Dictionary<ushort, ContentPartDef> PartsById = new Dictionary<ushort, ContentPartDef>();
-    private static readonly Dictionary<string, ContentPartDef> PartsByAsset = new Dictionary<string, ContentPartDef>(StringComparer.OrdinalIgnoreCase);
-    private static readonly Dictionary<string, Func<PartBehaviour>> Makers = new Dictionary<string, Func<PartBehaviour>>(StringComparer.Ordinal);
+    private static readonly Dictionary<string, ContentPartDef> PartsByAsset = new Dictionary<string, ContentPartDef>(
+        StringComparer.OrdinalIgnoreCase
+    );
+    private static readonly Dictionary<string, Func<PartBehaviour>> Makers = new Dictionary<
+        string,
+        Func<PartBehaviour>
+    >(StringComparer.Ordinal);
     private static bool _installed;
     private static bool _appliedThisWorld;
 
     public static List<ContentPack> Packs => Loaded;
     public static IReadOnlyList<string> Problems => Errors;
 
-    public static ContentPartDef PartDef(ushort partId)
-        => PartsById.TryGetValue(partId, out var def) ? def : null;
+    public static ContentPartDef PartDef(ushort partId) => PartsById.TryGetValue(partId, out var def) ? def : null;
 
-    public static ContentPartDef PartDefByAsset(string asset)
-        => asset != null && PartsByAsset.TryGetValue(asset, out var def) ? def : null;
+    public static ContentPartDef PartDefByAsset(string asset) =>
+        asset != null && PartsByAsset.TryGetValue(asset, out var def) ? def : null;
 
     public static PartSettings PartByAsset(string asset)
     {
@@ -141,14 +175,21 @@ public static class ContentRegistry
             return null;
         }
         var pack = ContentPack.Parse(text, assembly.GetName().Name + "/" + resource, Errors);
-        if (pack == null) return null;
+        if (pack == null)
+        {
+            return null;
+        }
+
         pack.Assembly = assembly;
         return Register(pack);
     }
 
     public static void Behaviour(string key, Func<PartBehaviour> make)
     {
-        if (!string.IsNullOrEmpty(key) && make != null) Makers[key] = make;
+        if (!string.IsNullOrEmpty(key) && make != null)
+        {
+            Makers[key] = make;
+        }
     }
 
     private static ContentPack Register(ContentPack pack)
@@ -164,7 +205,15 @@ public static class ContentRegistry
         {
             if (PartsById.ContainsKey(def.Id))
             {
-                Fail(pack.Id + ": part id " + def.Id + " already used by " + PartsById[def.Id].Pack.Id + "/" + PartsById[def.Id].Asset);
+                Fail(
+                    pack.Id
+                        + ": part id "
+                        + def.Id
+                        + " already used by "
+                        + PartsById[def.Id].Pack.Id
+                        + "/"
+                        + PartsById[def.Id].Asset
+                );
                 pack.Problems.Add("part id " + def.Id + " clashes with " + PartsById[def.Id].Asset);
                 continue;
             }
@@ -173,14 +222,32 @@ public static class ContentRegistry
             Game.SupportLink.RegisterDefinition(def);
             BindBehaviour(pack, def);
         }
-        foreach (string problem in pack.Problems) ContentLog.Warn(pack.Id, problem);
-        ContentLog.Info("registry", pack.Name + " " + pack.Version + " loaded: " + pack.Parts.Count + " parts, " + pack.Research.Count + " techs");
+        foreach (string problem in pack.Problems)
+        {
+            ContentLog.Warn(pack.Id, problem);
+        }
+
+        ContentLog.Info(
+            "registry",
+            pack.Name
+                + " "
+                + pack.Version
+                + " loaded: "
+                + pack.Parts.Count
+                + " parts, "
+                + pack.Research.Count
+                + " techs"
+        );
         return pack;
     }
 
     private static void BindBehaviour(ContentPack pack, ContentPartDef def)
     {
-        if (string.IsNullOrEmpty(def.Behaviour)) return;
+        if (string.IsNullOrEmpty(def.Behaviour))
+        {
+            return;
+        }
+
         if (Makers.TryGetValue(def.Behaviour, out var make))
         {
             try
@@ -216,15 +283,26 @@ public static class ContentRegistry
     private static Type ResolveType(string name, Assembly preferred)
     {
         Type type = preferred?.GetType(name, false, true);
-        if (type != null) return type;
+        if (type != null)
+        {
+            return type;
+        }
+
         type = Type.GetType(name, false, true);
-        if (type != null) return type;
+        if (type != null)
+        {
+            return type;
+        }
+
         foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
             try
             {
                 type = assembly.GetType(name, false, true);
-                if (type != null) return type;
+                if (type != null)
+                {
+                    return type;
+                }
             }
             catch { }
         }
@@ -237,7 +315,11 @@ public static class ContentRegistry
 
     private static void EnsureInstalled()
     {
-        if (_installed) return;
+        if (_installed)
+        {
+            return;
+        }
+
         _installed = true;
         ContentMenus.Install();
         ContentActions.Install();
@@ -261,7 +343,9 @@ public static class ContentRegistry
         foreach (ContentPartDef def in PartsById.Values)
         {
             if (!def.Attached && Support.Registration.Get(def.Id) == null)
+            {
                 ContentLog.Error(def.Pack.Id, def.Asset + " failed to build, donor " + def.Donor + " was not found");
+            }
         }
         Support.ResearchService.Apply(ResearchSpecs.FromPacks(Loaded));
         ContentRuntime.WorldEnter();
@@ -275,7 +359,11 @@ public static class ContentRegistry
         Game.PlayerAccess.Invalidate();
         Game.PartLookup.Invalidate();
         Support.NativeServices.InvalidateServices();
-        if (!_appliedThisWorld) return;
+        if (!_appliedThisWorld)
+        {
+            return;
+        }
+
         _appliedThisWorld = false;
         Support.MenuCatalog.Restore();
         ContentRuntime.WorldExit();
@@ -284,12 +372,23 @@ public static class ContentRegistry
     private static string EmbeddedText(Assembly assembly, string resource)
     {
         string leaf = resource.Replace('/', '.');
-        string name = assembly.GetManifestResourceNames()
-            .FirstOrDefault(n => n == leaf || n.EndsWith("." + leaf, StringComparison.OrdinalIgnoreCase) || n.EndsWith("." + resource.Replace('/', '.'), StringComparison.OrdinalIgnoreCase));
-        if (name == null) return null;
+        string name = assembly
+            .GetManifestResourceNames()
+            .FirstOrDefault(n =>
+                n == leaf
+                || n.EndsWith("." + leaf, StringComparison.OrdinalIgnoreCase)
+                || n.EndsWith("." + resource.Replace('/', '.'), StringComparison.OrdinalIgnoreCase)
+            );
+        if (name == null)
+        {
+            return null;
+        }
+
         using (var stream = assembly.GetManifestResourceStream(name))
         using (var reader = new StreamReader(stream))
+        {
             return reader.ReadToEnd();
+        }
     }
 
     private static void Fail(string message)

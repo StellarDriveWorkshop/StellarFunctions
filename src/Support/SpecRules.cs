@@ -6,13 +6,22 @@ public static class SpecRules
 {
     public static bool ValidSpec(ushort id, string asset) => id != 0 && !string.IsNullOrEmpty(asset);
 
-    public enum Readiness { Awaiting, Ready, Degraded }
+    public enum Readiness
+    {
+        Awaiting,
+        Ready,
+        Degraded,
+    }
 
     // Readiness means every required spec genuinely built. Any permanent
     // failure is degraded, never ready.
     public static Readiness Evaluate(int built, int failed, int total)
     {
-        if (total <= 0 || built + failed < total) return Readiness.Awaiting;
+        if (total <= 0 || built + failed < total)
+        {
+            return Readiness.Awaiting;
+        }
+
         return failed > 0 ? Readiness.Degraded : Readiness.Ready;
     }
 }

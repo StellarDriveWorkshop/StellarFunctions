@@ -10,7 +10,9 @@ public sealed record FunctionCallState : FunctionPartState, ISignalProcessorStat
     private static readonly byte[] InputSocketIds = { 0, 1, 2 };
 
     public Guid InstanceId { get; init; } = Guid.NewGuid();
-    [JsonIgnore] public override Guid StableId => InstanceId;
+
+    [JsonIgnore]
+    public override Guid StableId => InstanceId;
     public string SelectedFunctionId { get; init; } = string.Empty;
     public string SelectedName { get; init; } = string.Empty;
     public string PendingFunctionId { get; init; } = string.Empty;
@@ -33,27 +35,49 @@ public sealed record FunctionCallState : FunctionPartState, ISignalProcessorStat
     public double LastInput2 { get; init; }
     public long LastSignalPass { get; init; }
 
-    [JsonIgnore] public byte[] EmissionSockets => OutputSocketIds;
+    [JsonIgnore]
+    public byte[] EmissionSockets => OutputSocketIds;
     private static readonly byte[][] ListeningSocketIds = BuildListeningSocketIds();
+
     private static byte[][] BuildListeningSocketIds()
     {
         var result = new byte[8][];
         for (int mask = 0; mask < result.Length; mask++)
         {
             int count = 0;
-            for (byte id = 0; id < InputSocketIds.Length; id++) if ((mask & (1 << id)) != 0) count++;
+            for (byte id = 0; id < InputSocketIds.Length; id++)
+            {
+                if ((mask & (1 << id)) != 0)
+                {
+                    count++;
+                }
+            }
+
             var sockets = new byte[count];
             int index = 0;
-            for (byte id = 0; id < InputSocketIds.Length; id++) if ((mask & (1 << id)) != 0) sockets[index++] = InputSocketIds[id];
+            for (byte id = 0; id < InputSocketIds.Length; id++)
+            {
+                if ((mask & (1 << id)) != 0)
+                {
+                    sockets[index++] = InputSocketIds[id];
+                }
+            }
+
             result[mask] = sockets;
         }
         return result;
     }
-    [JsonIgnore] public byte[] ListeningSockets
+
+    [JsonIgnore]
+    public byte[] ListeningSockets
     {
         get
         {
-            int inputMask = InputCount == 1 ? 1 : InputCount == 2 ? 3 : InputCount == 3 ? 7 : 0;
+            int inputMask =
+                InputCount == 1 ? 1
+                : InputCount == 2 ? 3
+                : InputCount == 3 ? 7
+                : 0;
             return ListeningSocketIds[ListeningMask & inputMask & 7];
         }
     }

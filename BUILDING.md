@@ -57,6 +57,31 @@ reference assembly inputs.
   ./checks/persistence-json-check.ps1 -GameInstall 'D:\Games\StellarDrive Demo'
   ```
 
+## C# formatting
+
+The repository pins CSharpier as a local .NET tool. Restore it once, then use
+the brace fixer followed by CSharpier to format the maintained C# source and
+checks. The style-only project requires no game assemblies:
+
+```powershell
+dotnet tool restore
+dotnet format style checks/style/StyleChecks.csproj --diagnostics IDE0011 --severity warn
+dotnet csharpier format src checks
+```
+
+To verify without changing files:
+
+```powershell
+dotnet csharpier check src checks
+dotnet format style checks/style/StyleChecks.csproj --diagnostics IDE0011 --severity warn --verify-no-changes
+```
+
+GitHub Actions runs both checks automatically on pushes and pull requests. The
+configuration uses a 120-column wrapping target, four-space indentation, LF
+line endings, and braces for control statements. Generated files, build outputs,
+and XML project files are excluded. The style-only project is not a production
+build and does not validate game references or behavior.
+
 ## Releases
 
 Release artifacts are versioned directories (`releases/v<major>.<minor>.<patch>/`)
