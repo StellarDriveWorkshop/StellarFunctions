@@ -21,7 +21,10 @@
 
 Output: `work/StellarFunctions.dll` plus `work/build.json` (path, SHA-256,
 timestamp). The script enforces that `content/functions.json`'s version
-matches the `MelonInfo` release version and that the JSON has no BOM.
+matches the `MelonInfo` release version and that the JSON has no BOM. It
+normalizes the embedded JSON to LF line endings so checkout line endings do
+not change the DLL. Reproducing a release also requires matching compiler and
+reference assembly inputs.
 
 ## Tests
 
