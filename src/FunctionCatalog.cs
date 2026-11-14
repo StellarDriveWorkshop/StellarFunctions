@@ -14,6 +14,7 @@ internal static class FunctionCatalog
     {
         Entries.Clear();
         foreach (var def in definitions)
+        {
             Entries[def.State.DefinitionId.ToString("N")] = new Entry(
                 def.State.DefinitionId.ToString("N"),
                 def.State.Name,
@@ -21,6 +22,7 @@ internal static class FunctionCatalog
                 NativeFunctionRuntime.Origin(def.Address.ShipId),
                 NativeFunctionRuntime.IsPublished(def)
             );
+        }
     }
 
     internal static IEnumerable<Entry> Visible()

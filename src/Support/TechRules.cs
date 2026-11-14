@@ -33,8 +33,13 @@ public static class TechRules
         var have = new HashSet<T>(existing ?? new T[0]);
         var add = new List<T>();
         foreach (T item in wanted)
+        {
             if (item != null && have.Add(item))
+            {
                 add.Add(item);
+            }
+        }
+
         return add;
     }
 
@@ -45,12 +50,20 @@ public static class TechRules
         where T : class
     {
         if (current == null)
+        {
             return null;
+        }
+
         var drop = new HashSet<T>(owned);
         var kept = new List<T>(current.Count);
         foreach (T item in current)
+        {
             if (!drop.Contains(item))
+            {
                 kept.Add(item);
+            }
+        }
+
         return kept.ToArray();
     }
 

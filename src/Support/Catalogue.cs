@@ -28,7 +28,10 @@ public static class Catalogue
     public static bool Install()
     {
         if (_installed)
+        {
             return true;
+        }
+
         _partsDict = AccessTools.Field(typeof(PartSettingsProvider), "_partsDict");
         var method = AccessTools.Method(typeof(PartSettingsProvider), "EnsureDictIsCached");
         if (_partsDict == null || method == null)
@@ -71,7 +74,9 @@ public static class Catalogue
     public static void Register(PartSettings settings)
     {
         if (settings != null)
+        {
             Registered[settings.id] = settings;
+        }
     }
 
     // Harmony prefix: make sure every spec is materialized, then cover
@@ -86,22 +91,38 @@ public static class Catalogue
     public static void AfterEnsureDict(PartSettingsProvider __instance)
     {
         if (Registered.Count == 0 || _partsDict == null || __instance == null)
+        {
             return;
+        }
+
         if (!(_partsDict.GetValue(__instance) is Dictionary<ushort, PartSettings> dict))
+        {
             return;
+        }
+
         var plan = CatalogueMerge.Plan(dict, Registered);
         if (plan.Conflicts != null)
+        {
             foreach (ushort id in plan.Conflicts)
+            {
                 ReportForeignConflict(__instance, id, dict[id]);
+            }
+        }
+
         if (plan.Merged != null)
+        {
             _partsDict.SetValue(__instance, plan.Merged);
+        }
     }
 
     private static void ReportForeignConflict(PartSettingsProvider provider, ushort id, PartSettings foreign)
     {
         string key = (provider != null ? provider.GetHashCode() : 0) + ":" + id;
         if (!Conflicts.Add(key))
+        {
             return;
+        }
+
         NativeServices.Error(
             Scope,
             "part id "
@@ -116,6 +137,8 @@ public static class Catalogue
     {
         var provider = NativeServices.Service<PartSettingsProvider>();
         if (provider != null)
+        {
             AfterEnsureDict(provider);
+        }
     }
 }

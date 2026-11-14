@@ -27,11 +27,16 @@ internal static class PartVisuals
     {
         var visual = prefab.GetComponentInChildren<IShipPartVisual>();
         if (visual != null && ((IShipPartStateReactor)visual).GameObject != null)
+        {
             return ((IShipPartStateReactor)visual).GameObject.transform;
+        }
+
         Transform existing = prefab.transform.Find("Visual");
         GameObject host;
         if (existing != null)
+        {
             host = existing.gameObject;
+        }
         else
         {
             host = new GameObject("Visual");
@@ -39,7 +44,10 @@ internal static class PartVisuals
             host.layer = prefab.layer;
         }
         if (host.GetComponent<IShipPartVisual>() == null)
+        {
             host.AddComponent<DefaultShipPartVisuals>();
+        }
+
         NativeServices.Trace(spec.Asset, "donor had no part visual, added a default one on " + host.name);
         return host.transform;
     }
@@ -49,11 +57,20 @@ internal static class PartVisuals
     public static void ClearDonorVisual(PartSpec spec, Transform visual)
     {
         foreach (Transform child in visual.Cast<Transform>().ToList())
+        {
             UnityEngine.Object.DestroyImmediate(child.gameObject);
+        }
+
         foreach (Renderer renderer in visual.GetComponents<Renderer>().ToList())
+        {
             UnityEngine.Object.DestroyImmediate(renderer);
+        }
+
         foreach (MeshFilter filter in visual.GetComponents<MeshFilter>().ToList())
+        {
             UnityEngine.Object.DestroyImmediate(filter);
+        }
+
         bool removed = false;
         foreach (Component component in visual.GetComponents<Component>().ToList())
         {
@@ -75,7 +92,10 @@ internal static class PartVisuals
     {
         Transform existing = visual.Find("StellarFunctionsMeshes");
         if (existing != null)
+        {
             return existing;
+        }
+
         var root = new GameObject("StellarFunctionsMeshes") { layer = visual.gameObject.layer };
         root.transform.SetParent(visual, false);
         Vector3 scale = visual.lossyScale;
@@ -94,7 +114,10 @@ internal static class PartVisuals
     public static GameObject MeshChild(PartSpec spec, Transform parent, MeshSpec mesh)
     {
         if (mesh == null)
+        {
             return null;
+        }
+
         switch (MeshPlan.Route(mesh.Shape, mesh.Screen))
         {
             case MeshRoute.Text:
@@ -118,7 +141,10 @@ internal static class PartVisuals
         // A declared mesh that resolves to nothing is an essential-element
         // failure: the part must not report as fully constructed without it.
         if (geometry == null)
+        {
             throw new InvalidOperationException(spec.Asset + ": mesh could not be resolved from shape/donorPath");
+        }
+
         var go = new GameObject(name) { layer = parent.gameObject.layer };
         go.transform.SetParent(parent, false);
         go.transform.localPosition = mesh.Position;
@@ -135,24 +161,36 @@ internal static class PartVisuals
         if (material == null)
         {
             if (WarnedMaterials.Add(spec.Asset + "/" + mesh.Material))
+            {
                 NativeServices.Warn(
                     spec.Asset,
                     "material " + mesh.Material + " not found and PartMetal missing, mesh will be untextured"
                 );
+            }
+
             return null;
         }
         bool needsCopy = mesh.Tint.HasValue;
         if (!needsCopy)
+        {
             return material;
+        }
+
         var copy = new Material(material)
         {
             name = material.name + "_" + spec.Asset,
             hideFlags = HideFlags.HideAndDontSave,
         };
         if (copy.HasProperty("_BaseColor"))
+        {
             copy.SetColor("_BaseColor", mesh.Tint.Value);
+        }
+
         if (copy.HasProperty("_Color"))
+        {
             copy.SetColor("_Color", mesh.Tint.Value);
+        }
+
         return copy;
     }
 
@@ -231,11 +269,14 @@ internal static class PartVisuals
                 true
             )
         )
+        {
             if (collider != box && collider.enabled)
             {
                 collider.enabled = false;
                 disabled++;
             }
+        }
+
         Transform boxTransform = box.transform;
         Transform prefabTransform = prefab.transform;
         box.center = boxTransform.InverseTransformPoint(prefabTransform.TransformPoint(boundsCenter));
@@ -271,15 +312,24 @@ internal static class PartVisuals
             || ((IShipPartStateReactor)interactions).GameObject == null
             || ((IShipPartStateReactor)visual).GameObject == null
         )
+        {
             return;
+        }
+
         var interaction = ((IShipPartStateReactor)interactions)
             .GameObject.GetComponentsInChildren<Component>(true)
             .FirstOrDefault(c => c != null && c.GetType().Name == "PartInteraction");
         if (interaction == null)
+        {
             return;
+        }
+
         string name = interaction.name;
         if (FindNamed(((IShipPartStateReactor)visual).GameObject.transform, name) != null)
+        {
             return;
+        }
+
         Transform meshes = ((IShipPartStateReactor)visual).GameObject.transform.Find("StellarFunctionsMeshes");
         if (meshes == null)
         {
@@ -293,12 +343,17 @@ internal static class PartVisuals
     private static Transform FindNamed(Transform root, string name)
     {
         if (root.name == name)
+        {
             return root;
+        }
+
         foreach (Transform child in root)
         {
             Transform found = FindNamed(child, name);
             if (found != null)
+            {
                 return found;
+            }
         }
         return null;
     }
@@ -316,7 +371,10 @@ internal static class PartVisuals
         foreach (Renderer renderer in prefab.GetComponentsInChildren<Renderer>(true))
         {
             if (renderer == null || renderer.GetComponentInParent<SocketObject>() != null)
+            {
                 continue;
+            }
+
             var filter = renderer.GetComponent<MeshFilter>();
             Bounds bounds =
                 filter != null && filter.sharedMesh != null

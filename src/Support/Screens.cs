@@ -41,7 +41,10 @@ public static class Screens
     {
         frame = default;
         if (!Channels.TryGetProvider(channel, out var source))
+        {
             return false;
+        }
+
         try
         {
             frame = source(screen);
@@ -52,7 +55,10 @@ public static class Screens
             // Once per channel: a throwing provider must not log at the
             // 10 Hz polling rate.
             if (Channels.MarkProviderError(channel))
+            {
                 NativeServices.Error("screens", "screen " + channel + " failed :: " + error.Message);
+            }
+
             return false;
         }
     }
@@ -66,10 +72,15 @@ public static class Screens
                 f != null && string.Equals(f.name, name, StringComparison.OrdinalIgnoreCase)
             );
             if (named != null)
+            {
                 return named;
+            }
         }
         if (_font != null)
+        {
             return _font;
+        }
+
         _font =
             Resources
                 .FindObjectsOfTypeAll<TMP_Text>()
@@ -85,7 +96,10 @@ public static class Screens
             )
             ?? all.FirstOrDefault(f => f != null);
         if (_font != null)
+        {
             NativeServices.Trace("screens", "game font " + _font.name);
+        }
+
         return _font;
     }
 
@@ -139,7 +153,10 @@ public static class Screens
         var text = host.AddComponent<TextMeshPro>();
         TMP_FontAsset font = Font(fontName);
         if (font != null)
+        {
             text.font = font;
+        }
+
         text.rectTransform.sizeDelta = size;
         text.alignment = TextAlignmentOptions.Center;
         text.textWrappingMode = TextWrappingModes.NoWrap;

@@ -16,9 +16,15 @@ public static class MeshPlan
     public static MeshRoute Route(string shape, string screen)
     {
         if (string.Equals(shape, "text", System.StringComparison.OrdinalIgnoreCase))
+        {
             return MeshRoute.Text;
+        }
+
         if (string.Equals(shape, "screen", System.StringComparison.OrdinalIgnoreCase) || !string.IsNullOrEmpty(screen))
+        {
             return MeshRoute.Screen;
+        }
+
         return MeshRoute.Geometry;
     }
 }

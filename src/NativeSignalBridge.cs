@@ -38,7 +38,9 @@ internal static class NativeSignalBridge
     internal static void Install(string harmonyId)
     {
         if (_harmony != null)
+        {
             return;
+        }
 
         VerifyAssembly(typeof(SignalConnectionsServerUpdater).Assembly, ShipsSha256);
 
@@ -100,25 +102,32 @@ internal static class NativeSignalBridge
     {
         string path = assembly.Location;
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
             throw new InvalidOperationException("Cannot identify loaded native assembly " + assembly.GetName().Name);
+        }
 
         using SHA256 sha = SHA256.Create();
         using FileStream stream = File.OpenRead(path);
         string actual = BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
         if (!string.Equals(actual, expectedSha256, StringComparison.OrdinalIgnoreCase))
+        {
             throw new InvalidOperationException(
                 "Unsupported Ships.dll identity " + actual + "; expected " + expectedSha256
             );
+        }
     }
 
     private static MethodInfo ExactMethod(Type type, string name, Type returnType, params Type[] parameters)
     {
         MethodInfo method = AccessTools.Method(type, name, parameters);
         if (method == null || method.ReturnType != returnType)
+        {
             throw new MissingMethodException(
                 type.FullName,
                 name + "(" + string.Join(",", Array.ConvertAll(parameters, p => p.FullName)) + ")"
             );
+        }
+
         return method;
     }
 
@@ -132,7 +141,10 @@ internal static class NativeSignalBridge
     private static Exception EndSignalPass(Exception __exception, SignalPass __state)
     {
         if (_currentPass != null)
+        {
             _lastCompletedPass = _currentPass;
+        }
+
         _currentPass = __state;
         return __exception;
     }
@@ -141,7 +153,9 @@ internal static class NativeSignalBridge
     {
         SignalPass pass = _currentPass;
         if (pass == null)
+        {
             return;
+        }
 
         __instance.GetGroupInputsAndOutputs(groupId, out List<EntityPartSocket> inputs, out _);
         ShipsServerTracker ships = null;
@@ -151,17 +165,32 @@ internal static class NativeSignalBridge
             // Unity's tagged objects/components; do that only for socket 3,
             // once per group. Keep live group enumeration and per-pass ordering.
             if (socket.Socket.SocketId != 3)
+            {
                 continue;
+            }
+
             if (ships == null)
+            {
                 ships = Core.Services.ServiceLocator.GetService<ShipsServerTracker>();
+            }
+
             if (ships == null)
+            {
                 throw new InvalidOperationException("ShipsServerTracker unavailable during native signal evaluation");
+            }
+
             if (!ships.TryGetTrackedShip(socket.EntityId, out TrackedShipServer ship))
+            {
                 continue;
+            }
+
             if (
                 !ship.TryGetStatefulPart(socket.Socket.PartId, out var part) || part.State is not FunctionCallState call
             )
+            {
                 continue;
+            }
+
             EvaluateOnce(ship, part, call);
         }
     }
@@ -171,19 +200,30 @@ internal static class NativeSignalBridge
         SignalPass pass = _currentPass;
         var address = new PartContext(ship.Id, part.Id);
         if (pass == null || NativeFunctionRuntime.IsOwned(address))
+        {
             return;
+        }
+
         var key = new CallKey(ship.Id, part.Id);
         if (!pass.EvaluatedCalls.Add(key))
+        {
             return;
+        }
+
         pass.Evaluations[key] = 1;
         var connections = Core.Services.ServiceLocator.GetService<ConnectionsServerTracker>();
         var inputs = new double[3];
         for (byte i = 0; i < call.InputCount; i++)
+        {
             inputs[i] = connections.GetSocketSignalValue(new EntityPartSocket(ship.Id, part.Id, i));
+        }
+
         FunctionCallState next = NativeFunctionRuntime.Evaluate(address, call, inputs, pass.DeltaTime, pass.Id);
         // Do not replicate a steady circuit solely because another tick elapsed.
         if (!Equals(call, next with { LastSignalPass = call.LastSignalPass }))
+        {
             ship.UpdatePartState(part.Id, next);
+        }
     }
 
     private static IEnumerable<CodeInstruction> InsertCustomDispatch(
@@ -204,7 +244,10 @@ internal static class NativeSignalBridge
             )
             .ToArray();
         if (ship.Length != 1 || part.Length != 1 || matches.Length != 1)
+        {
             throw new InvalidOperationException("Unsupported native signal dispatcher IL shape");
+        }
+
         code.InsertRange(
             matches[0].index + 1,
             new[]
@@ -231,7 +274,10 @@ internal static class NativeSignalBridge
     )
     {
         if (NativeFunctionRuntime.IsOwned(new PartContext(ship.Id, part.Id)))
+        {
             return Suppressed;
+        }
+
         if (state is FunctionCallState call)
         {
             EvaluateOnce(ship, part, call);
@@ -248,7 +294,9 @@ internal static class NativeSignalBridge
             return false;
         }
         if (entityPartSocket.Socket.SocketId != 3)
+        {
             return true;
+        }
 
         ShipsServerTracker ships = Core.Services.ServiceLocator.GetService<ShipsServerTracker>();
         if (
@@ -269,10 +317,15 @@ internal static class NativeSignalBridge
     {
         Type type = __0 == null ? null : FunctionStateCodec.StateType(__0.id);
         if (type == null)
+        {
             return true;
+        }
+
         string configuredType = type.FullName + ", " + type.Assembly.GetName().Name;
         if (__0 == null || !string.Equals(__0.internalStateClass, configuredType, StringComparison.Ordinal))
+        {
             return true;
+        }
 
         // The native factory only searches Ships.Interface.Model.Parts.State.
         // Resolve this mod-owned state directly so Call instances can be

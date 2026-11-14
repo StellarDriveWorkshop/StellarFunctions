@@ -28,13 +28,18 @@ internal sealed class CallFaceOrientation : MonoBehaviour
     private void Update()
     {
         if (!_ready || transform.root == Support.PartFactory.Holder)
+        {
             return;
+        }
+
         if (_camera == null)
         {
             var main = Camera.main;
             _camera = main != null ? main.transform : null;
             if (_camera == null)
+            {
                 return;
+            }
         }
         Vector3 up = _surface.up;
         Vector3 local = Quaternion.Inverse(_surface.rotation) * Vector3.ProjectOnPlane(-_camera.up, up).normalized;

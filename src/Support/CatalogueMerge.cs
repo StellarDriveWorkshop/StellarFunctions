@@ -23,7 +23,10 @@ public static class CatalogueMerge
     {
         var result = new Result<T>();
         if (existing == null || registered == null || registered.Count == 0)
+        {
             return result;
+        }
+
         foreach (var pair in registered)
         {
             if (!existing.TryGetValue(pair.Key, out var current))
@@ -32,7 +35,9 @@ public static class CatalogueMerge
                 {
                     result.Merged = new Dictionary<ushort, T>(existing.Count + registered.Count);
                     foreach (var entry in existing)
+                    {
                         result.Merged[entry.Key] = entry.Value;
+                    }
                 }
                 result.Merged[pair.Key] = pair.Value;
             }

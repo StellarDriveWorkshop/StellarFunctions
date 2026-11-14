@@ -63,9 +63,12 @@ internal static class FunctionDirectory
     internal static string StatusAt(float now)
     {
         if (_requestPending)
+        {
             return now - _requestStarted >= ResponseTimeout ? "Server did not respond; retrying"
                 : Current != null ? "Refreshing from server…"
                 : "Waiting for server…";
+        }
+
         return Current != null ? "Ready" : "Idle";
     }
 
@@ -96,7 +99,10 @@ internal static class FunctionDirectory
     internal static void RequestRefresh()
     {
         if (_target == Guid.Empty)
+        {
             return;
+        }
+
         _next = UnityEngine.Time.unscaledTime + .1f;
         _requestStarted = UnityEngine.Time.unscaledTime;
         _requestPending = true;
@@ -106,12 +112,21 @@ internal static class FunctionDirectory
     {
         EnsureNetworking();
         if (part.Part?.State is not FunctionPartState state)
+        {
             return;
+        }
+
         if (_target != state.StableId)
+        {
             Begin(state.StableId);
+        }
+
         float now = UnityEngine.Time.unscaledTime;
         if (now < _next)
+        {
             return;
+        }
+
         _next = now + 1f;
         if (!_requestPending && Current == null)
         {
@@ -132,7 +147,9 @@ internal static class FunctionDirectory
         // A manager change clears the snapshot: replies in flight belonged
         // to the previous session's transport.
         if (_link.Tick())
+        {
             Current = null;
+        }
     }
 
     internal static void Uninstall()
@@ -152,7 +169,10 @@ internal static class FunctionDirectory
             || ContentConfigMenu.Current.Part?.State is not FunctionPartState state
             || state.StableId != _target
         )
+        {
             return false;
+        }
+
         try
         {
             var data = JsonConvert.DeserializeObject<Snapshot>(
@@ -168,7 +188,10 @@ internal static class FunctionDirectory
                 || data.Entries == null
                 || data.Entries.Length > 256
             )
+            {
                 return false;
+            }
+
             if (
                 data.Entries.Any(e =>
                     e == null
@@ -181,7 +204,10 @@ internal static class FunctionDirectory
                     || !Text(e.Parameters, 256)
                 )
             )
+            {
                 return false;
+            }
+
             _accepted = data.Sequence;
             Current = data;
             _requestPending = false;
@@ -257,7 +283,10 @@ internal static class FunctionDirectory
     internal static bool Handle(ContentPart part, TrackedPlayerServer player, string action)
     {
         if (!action.StartsWith("directory:", StringComparison.Ordinal))
+        {
             return false;
+        }
+
         var tokens = action.Substring(10).Split(':');
         if (
             tokens.Length != 2
@@ -266,13 +295,19 @@ internal static class FunctionDirectory
             || !long.TryParse(tokens[1], out long sequence)
             || sequence < 1
         )
+        {
             return true;
+        }
+
         EnsureNetworking();
         var snapshot = Build(part, nonce.ToString("N"));
         snapshot.Sequence = sequence;
         var response = new Reply { Json = JsonConvert.SerializeObject(snapshot, Formatting.None) };
         if (response.Json.Length > 196608)
+        {
             return true;
+        }
+
         object localClientId = LocalClientId();
         var network = InstanceFinder.NetworkManager;
         if (
@@ -283,17 +318,27 @@ internal static class FunctionDirectory
                 localClientId
             )
         )
+        {
             Accept(response.Json);
+        }
         else if (network != null && network.ServerManager.Clients.TryGetValue(player.ConnectionId, out var connection))
+        {
             network.ServerManager.Broadcast(connection, response, true, Channel.Reliable);
+        }
+
         return true;
     }
 
     private static object LocalClientId()
     {
         foreach (var state in UnityEngine.Object.FindObjectsByType<PlayerNetworkState>(FindObjectsSortMode.None))
+        {
             if (state != null && state.IsOwner)
+            {
                 return state.Id;
+            }
+        }
+
         return null;
     }
 

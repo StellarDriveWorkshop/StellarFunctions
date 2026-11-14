@@ -136,7 +136,10 @@ internal static class CallSizingAuthorityChecks
             foreach (var prefabs in Resources.FindObjectsOfTypeAll<Ships.Values.ShipPrefabs>())
             {
                 if (prefabs.shipColliders == null)
+                {
                     continue;
+                }
+
                 nativeLayoutFound = true;
                 check(
                     prefabs.shipColliders.GetComponentInChildren<ShipInteractionColliders>(true) == null,
@@ -156,6 +159,7 @@ internal static class CallSizingAuthorityChecks
             nativeInteractions.Setup(ship);
             state.HookPartListeners(interactionRoot);
             foreach (var collider in interactionRoot.GetComponentsInChildren<Collider>(true))
+            {
                 check(
                     true,
                     "native interaction collider "
@@ -165,6 +169,8 @@ internal static class CallSizingAuthorityChecks
                         + " trigger="
                         + collider.isTrigger
                 );
+            }
+
             instancerRoot = new GameObject("Native clearance instancer");
             var instancer = instancerRoot.AddComponent<Ships.Visuals.ShipPartInstancer>();
             solidRoot = new GameObject("Native clearance solid colliders");
@@ -188,9 +194,12 @@ internal static class CallSizingAuthorityChecks
                 plane.Parts.Add(new ColliderPlanePart(placement));
                 var chunk = UnityEngine.Object.Instantiate(chunkPrefab, root.transform);
                 foreach (var shape in new PlaneColliderScanner().GetColliders(Vector3Int.zero, plane))
+                {
                     AccessTools
                         .Method(typeof(ShipHullColliderChunk), "SpawnCollider")
                         .Invoke(chunk, new object[] { shape, placement.Position.Type, placement.ForwardOrientation });
+                }
+
                 ushort mountedId = (ushort)(wall ? 202 : 201);
                 var mounted = new StatefulPart(
                     mountedId,
@@ -376,26 +385,32 @@ internal static class CallSizingAuthorityChecks
             {
                 root.transform.SetPositionAndRotation(new Vector3(5, 7, -4), rotation);
                 foreach (int from in new[] { 1, 2, 3 })
-                foreach (int to in new[] { 1, 2, 3 })
                 {
-                    if (from == to)
-                        continue;
-                    state.SetPartState(partId, original with { InputCount = from });
-                    Bounds ownBounds = part.Settings.Bounds;
-                    ownBox.center = ownBounds.center;
-                    ownBox.size = ownBounds.size;
-                    Act(Request(to));
-                    check(
-                        ((FunctionCallState)part.State).InputCount == to
-                            && ((FunctionCallState)part.State).ResizeFeedback == "",
-                        "clear mounted resize "
-                            + from
-                            + "->"
-                            + to
-                            + " succeeds with existing contact at root rotation "
-                            + rotation.eulerAngles
-                    );
+                    foreach (int to in new[] { 1, 2, 3 })
+                    {
+                        if (from == to)
+                        {
+                            continue;
+                        }
+
+                        state.SetPartState(partId, original with { InputCount = from });
+                        Bounds ownBounds = part.Settings.Bounds;
+                        ownBox.center = ownBounds.center;
+                        ownBox.size = ownBounds.size;
+                        Act(Request(to));
+                        check(
+                            ((FunctionCallState)part.State).InputCount == to
+                                && ((FunctionCallState)part.State).ResizeFeedback == "",
+                            "clear mounted resize "
+                                + from
+                                + "->"
+                                + to
+                                + " succeeds with existing contact at root rotation "
+                                + rotation.eulerAngles
+                        );
+                    }
                 }
+
                 state.SetPartState(partId, original with { InputCount = 1 });
                 obstacle = new GameObject("Rotated expansion obstruction");
                 SceneManager.MoveGameObjectToScene(obstacle, scene);
@@ -567,11 +582,20 @@ internal static class CallSizingAuthorityChecks
                 UnityEngine.Object.DestroyImmediate(solidRoot);
             }
             if (instancerRoot != null)
+            {
                 UnityEngine.Object.DestroyImmediate(instancerRoot);
+            }
+
             if (obstacle != null)
+            {
                 UnityEngine.Object.DestroyImmediate(obstacle);
+            }
+
             if (root != null)
+            {
                 UnityEngine.Object.DestroyImmediate(root);
+            }
+
             SceneManager.UnloadSceneAsync(scene);
             UnityEngine.Object.DestroyImmediate(services);
         }

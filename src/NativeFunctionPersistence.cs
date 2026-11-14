@@ -21,7 +21,10 @@ internal static class NativeFunctionPersistence
     internal static void Install()
     {
         if (_harmony != null)
+        {
             return;
+        }
+
         _harmony = new HarmonyLib.Harmony("stellar.functions.persistence");
         var save = AccessTools.Method(
             typeof(ShipsConverter),
@@ -34,7 +37,10 @@ internal static class NativeFunctionPersistence
             new[] { typeof(SerializableShip) }
         );
         if (save == null || load == null)
+        {
             throw new MissingMethodException("Native ship state persistence contract");
+        }
+
         _harmony.Patch(save, postfix: new HarmonyMethod(typeof(NativeFunctionPersistence), nameof(AfterSerialize)));
         _harmony.Patch(load, postfix: new HarmonyMethod(typeof(NativeFunctionPersistence), nameof(AfterDeserialize)));
     }
@@ -56,9 +62,11 @@ internal static class NativeFunctionPersistence
             })
             .ToArray();
         if (metadata.Length > 0)
+        {
             __result.beaconStates = (__result.beaconStates ?? Array.Empty<SerializableBeaconState>())
                 .Concat(metadata)
                 .ToArray();
+        }
     }
 
     private static void AfterDeserialize(SerializableShip ship, StatefulPart[] __result)
@@ -67,16 +75,22 @@ internal static class NativeFunctionPersistence
         {
             Type expected = FunctionStateCodec.StateType(part.Settings.id);
             if (expected == null)
+            {
                 continue;
+            }
+
             var records = (ship.beaconStates ?? Array.Empty<SerializableBeaconState>())
                 .Where(b =>
                     b.partId == part.Id && b.name != null && b.name.StartsWith(Prefix, StringComparison.Ordinal)
                 )
                 .ToArray();
             if (records.Length != 1)
+            {
                 throw new InvalidDataException(
                     "Function part metadata is missing or duplicated; restore the intact snapshot rather than saving defaults."
                 );
+            }
+
             FunctionPartState state = FunctionStateCodec.Decode(
                 records[0].name.Substring(Prefix.Length),
                 expected,

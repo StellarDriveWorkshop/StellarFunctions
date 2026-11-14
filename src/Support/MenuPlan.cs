@@ -26,14 +26,23 @@ public static class MenuPlan
         rowIndex = -1;
         insertIndex = -1;
         if (tabs == null || parts == null || isAnchor == null || capacity <= 0)
+        {
             return false;
+        }
 
         var tabList = new List<IReadOnlyList<TRow>>();
         foreach (var tab in tabs)
+        {
             if (tab != null)
+            {
                 tabList.Add(tab);
+            }
+        }
+
         if (tabList.Count == 0)
+        {
             return false;
+        }
 
         int anchorTab = -1,
             anchorRow = -1;
@@ -41,21 +50,32 @@ public static class MenuPlan
         {
             var rows = tabList[t];
             if (rows == null)
+            {
                 continue;
+            }
+
             for (int r = 0; r < rows.Count; r++)
             {
                 var rowParts = parts(rows[r]);
                 if (rowParts == null)
+                {
                     continue;
+                }
+
                 foreach (var part in rowParts)
+                {
                     if (isAnchor(part))
                     {
                         anchorTab = t;
                         anchorRow = r;
                         break;
                     }
+                }
+
                 if (anchorRow >= 0)
+                {
                     break;
+                }
             }
         }
 
@@ -77,19 +97,27 @@ public static class MenuPlan
             int preferredTab = anchorTab >= 0 ? anchorTab : tabList.Count - 1;
             targetTab = FindRoomiest(tabList, parts, capacity, preferredTab, out targetRow);
             if (targetRow < 0)
+            {
                 targetTab = FindRoomiest(tabList, parts, capacity, -1, out targetRow);
+            }
+
             if (targetRow < 0)
+            {
                 return false;
+            }
         }
 
         var targetParts = parts(tabList[targetTab][targetRow]);
         insertIndex = targetParts.Count;
         for (int i = 0; i < targetParts.Count; i++)
+        {
             if (isAnchor(targetParts[i]))
             {
                 insertIndex = i + 1;
                 break;
             }
+        }
+
         tabIndex = targetTab;
         rowIndex = targetRow;
         return true;
@@ -109,15 +137,23 @@ public static class MenuPlan
         for (int t = 0; t < tabs.Count; t++)
         {
             if (onlyTab >= 0 && t != onlyTab)
+            {
                 continue;
+            }
+
             var rows = tabs[t];
             if (rows == null)
+            {
                 continue;
+            }
+
             for (int r = 0; r < rows.Count; r++)
             {
                 var rowParts = parts(rows[r]);
                 if (rowParts == null || rowParts.Count >= capacity)
+                {
                     continue;
+                }
                 // Roomiest first; ties keep the earliest row (matches the
                 // previous OrderByDescending(...).FirstOrDefault() behavior).
                 if (rowParts.Count > bestCount)

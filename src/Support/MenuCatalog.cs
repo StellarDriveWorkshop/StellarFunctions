@@ -27,7 +27,10 @@ public static class MenuCatalog
     public static bool Install()
     {
         if (_installed)
+        {
             return true;
+        }
+
         _tabsConfig = AccessTools.Field(typeof(BuildMenu), "tabsConfig");
         var method = AccessTools.Method(typeof(BuildMenu), "Start");
         if (_tabsConfig == null || method == null)
@@ -63,9 +66,14 @@ public static class MenuCatalog
     {
         Registration.EnsureMaterialized();
         if (_tabsConfig == null || __instance == null)
+        {
             return;
+        }
+
         if (!(_tabsConfig.GetValue(__instance) is BuildMenuTabConfig[] tabs))
+        {
             return;
+        }
 
         foreach (var entry in Registration.MenuEntries())
         {
@@ -78,7 +86,9 @@ public static class MenuCatalog
                     && tab.rows.Any(row => row != null && row.parts != null && row.parts.Contains(settings))
                 )
             )
+            {
                 continue;
+            }
 
             if (
                 !MenuPlan.TryPlace(
@@ -91,7 +101,9 @@ public static class MenuCatalog
                     out int insertIndex
                 )
             )
+            {
                 continue;
+            }
 
             var target = tabs[tabIndex].rows[rowIndex];
             var list = target.parts.ToList();
@@ -110,10 +122,15 @@ public static class MenuCatalog
         {
             var row = pair.Key;
             if (row?.parts == null)
+            {
                 continue;
+            }
+
             var kept = row.parts.Where(p => !pair.Value.Contains(p)).ToArray();
             if (kept.Length != row.parts.Length)
+            {
                 row.parts = kept;
+            }
         }
         Inserted.Clear();
     }
@@ -121,17 +138,28 @@ public static class MenuCatalog
     private static void TrackInsertion(BuildMenuTabConfig.BuildMenuRow row, PartSettings settings)
     {
         if (row == null)
+        {
             return;
+        }
+
         if (!Inserted.TryGetValue(row, out var list))
+        {
             Inserted[row] = list = new List<PartSettings>();
+        }
+
         if (!list.Contains(settings))
+        {
             list.Add(settings);
+        }
     }
 
     private static bool Matches(PartSettings settings, string name)
     {
         if (settings == null)
+        {
             return false;
+        }
+
         return settings.name == name || settings.fullLabel == name;
     }
 }

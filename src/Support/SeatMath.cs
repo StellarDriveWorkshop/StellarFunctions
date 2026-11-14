@@ -53,7 +53,9 @@ public static class SeatMath
     {
         int axis = FitMath.DominantAxis(dirX, dirY, dirZ, out float sign);
         if (axis < 0)
+        {
             return default;
+        }
 
         float local =
             axis == 0 ? localX

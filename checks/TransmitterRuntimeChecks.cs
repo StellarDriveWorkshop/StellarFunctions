@@ -298,7 +298,10 @@ public static class TransmitterRuntimeChecks
         {
             catalogEntries.Clear();
             foreach (DictionaryEntry entry in oldCatalogEntries)
+            {
                 catalogEntries.Add(entry.Key, entry.Value);
+            }
+
             definitionsField.SetValue(null, oldDefinitions);
             parentsField.SetValue(null, oldParents);
             transmittersField.SetValue(null, oldTransmitters);
@@ -328,7 +331,10 @@ public static class TransmitterRuntimeChecks
             BindingFlags.Instance | BindingFlags.Public
         );
         if (property == null)
+        {
             throw new MissingMemberException(typeof(FunctionReturnState).FullName, "Broadcast");
+        }
+
         property.SetValue(state, broadcast, null);
         return state;
     }
@@ -866,7 +872,10 @@ public static class TransmitterRuntimeChecks
         var copy = new List<DictionaryEntry>();
         IDictionaryEnumerator entries = dictionary.GetEnumerator();
         while (entries.MoveNext())
+        {
             copy.Add(new DictionaryEntry(entries.Key, entries.Value));
+        }
+
         return copy;
     }
 
@@ -893,7 +902,10 @@ public static class TransmitterRuntimeChecks
         object[] args = { id.ToString("N"), ship, null };
         bool actual = (bool)method.Invoke(null, args);
         if (actual != expected)
+        {
             throw new InvalidOperationException(message + "; actual=" + actual + ", expected=" + expected);
+        }
+
         check(true, message);
     }
 

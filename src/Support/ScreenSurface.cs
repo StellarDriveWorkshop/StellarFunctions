@@ -70,7 +70,9 @@ public class ScreenSurface : MonoBehaviour
         // Measured screens wait for the visual and its TMP child to finish
         // initialization. Legacy channels still present immediately.
         if (_preferredSize <= 0f)
+        {
             Present(0f);
+        }
     }
 
     private void OnDestroy() => ScreenProfiler.SurfaceDestroyed(_preferredSize > 0f);
@@ -89,7 +91,10 @@ public class ScreenSurface : MonoBehaviour
             Present(Mathf.Min(Time.unscaledDeltaTime, 0.25f));
         }
         else
+        {
             ScreenProfiler.Exit(ScreenProfileExit.HolderSkip);
+        }
+
         ScreenProfiler.End(ScreenProfileBucket.Update, updateStart);
     }
 
@@ -111,7 +116,10 @@ public class ScreenSurface : MonoBehaviour
             return;
         }
         if (_frame.TextColor is Color color && _text.color != color)
+        {
             _text.color = color;
+        }
+
         string content = _frame.Text ?? string.Empty;
         if (_preferredSize > 0f)
         {
@@ -134,7 +142,10 @@ public class ScreenSurface : MonoBehaviour
             shown = ScreenText.Mono(ScreenText.Window(ticker, _columns, _offset));
         }
         else
+        {
             shown = content;
+        }
+
         if (shown == _shown)
         {
             ScreenProfiler.Exit(ScreenProfileExit.Unchanged);
@@ -206,7 +217,10 @@ public class ScreenSurface : MonoBehaviour
     private float MeasureLine(string content, float size)
     {
         if (content.Length == 0)
+        {
             return 0f;
+        }
+
         _measured = true;
         long measureStart = ScreenProfiler.Begin(ScreenProfileBucket.MeasureLine);
         _text.fontSize = size;
@@ -225,7 +239,10 @@ public class ScreenSurface : MonoBehaviour
             {
                 var glyph = info.characterInfo[i];
                 if (!glyph.isVisible)
+                {
                     continue;
+                }
+
                 extentX = Mathf.Max(extentX, Mathf.Max(centerX - glyph.bottomLeft.x, glyph.topRight.x - centerX));
                 extentY = Mathf.Max(extentY, Mathf.Max(centerY - glyph.bottomLeft.y, glyph.topRight.y - centerY));
             }
@@ -246,7 +263,10 @@ public class ScreenSurface : MonoBehaviour
     private void FitText()
     {
         if (_locked)
+        {
             return;
+        }
+
         _locked = true;
         _text.enableAutoSizing = true;
         _text.text = ScreenText.Mono(new string('W', _columns));

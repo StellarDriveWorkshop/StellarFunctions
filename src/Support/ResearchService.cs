@@ -77,7 +77,10 @@ public static class ResearchService
         {
             TechSpec spec = materialized[i];
             if (spec == null)
+            {
                 continue;
+            }
+
             if (!plan[i])
             {
                 NativeServices.Warn(Scope, spec.Name + ": research id " + spec.Id + " already taken, skipped");
@@ -108,9 +111,13 @@ public static class ResearchService
         {
             PartSettings resolved = PartResolver?.Invoke(name);
             if (resolved == null)
+            {
                 NativeServices.Warn(Scope, spec.Name + ": unlocked part " + name + " not found");
+            }
             else if (!parts.Contains(resolved))
+            {
                 parts.Add(resolved);
+            }
         }
         var requirements = new List<ResearchSettings>();
         foreach (ushort required in spec.Requires ?? Enumerable.Empty<ushort>())
@@ -153,7 +160,10 @@ public static class ResearchService
             Array emptyCost =
                 ItemCatalog.ItemInstanceType != null ? Array.CreateInstance(ItemCatalog.ItemInstanceType, 0) : null;
             if (emptyCost != null)
+            {
                 AccessTools.Field(typeof(ResearchSettings), "resourceCost").SetValue(settings, emptyCost);
+            }
+
             settings.positionInTechTree = spec.Position;
             settings.availableInDemo = true;
             settings.hideFromTechTree = spec.Hidden;
@@ -167,12 +177,19 @@ public static class ResearchService
             {
                 nativeTech = list.list.FirstOrDefault(s => s != null && s.techName == spec.GrantedByName);
                 if (nativeTech != null)
+                {
                     grantedBy = nativeTech.id;
+                }
                 else
+                {
                     PendingGrants[spec.Id] = new PendingGrant { TechName = spec.GrantedByName, Parts = parts };
+                }
             }
             if (grantedBy != 0)
+            {
                 Grants[spec.Id] = grantedBy;
+            }
+
             if (nativeTech != null)
             {
                 mergedTech = nativeTech;
@@ -194,7 +211,9 @@ public static class ResearchService
             Grants.Remove(spec.Id);
             PendingGrants.Remove(spec.Id);
             if (mergedTech != null)
+            {
                 mergedTech.unlockedParts = mergedBefore;
+            }
             // AddedUnlocks keeps the merge record intentionally: its entries
             // are matched by reference against the live array at Revert, so a
             // rolled-back merge leaves only inert entries cleared next cycle.
@@ -207,12 +226,21 @@ public static class ResearchService
     private static void MergeUnlocks(ResearchSettings tech, List<PartSettings> parts)
     {
         if (tech == null || parts == null || parts.Count == 0)
+        {
             return;
+        }
+
         List<PartSettings> merged = TechRules.MergeAdditions(tech.unlockedParts, parts);
         if (merged.Count == 0)
+        {
             return;
+        }
+
         if (!AddedUnlocks.TryGetValue(tech, out List<PartSettings> ours))
+        {
             AddedUnlocks[tech] = ours = new List<PartSettings>();
+        }
+
         ours.AddRange(merged);
         tech.unlockedParts = (tech.unlockedParts ?? Array.Empty<PartSettings>()).Concat(merged).ToArray();
     }
@@ -225,13 +253,22 @@ public static class ResearchService
     {
         ResearchSettingsList list = _appliedList;
         if (list?.list != null)
+        {
             foreach (ResearchSettings settings in Added)
+            {
                 list.list.Remove(settings);
+            }
+        }
         // The service owns these HideAndDontSave instances; destroy them so
         // repeated Apply/Revert cycles do not leak ScriptableObjects.
         foreach (ResearchSettings settings in Added)
+        {
             if (settings != null)
+            {
                 UnityEngine.Object.Destroy(settings);
+            }
+        }
+
         Added.Clear();
         Grants.Clear();
         PendingGrants.Clear();
@@ -239,7 +276,9 @@ public static class ResearchService
         {
             PartSettings[] current = pair.Key.unlockedParts;
             if (current != null)
+            {
                 pair.Key.unlockedParts = TechRules.RemoveOwned(current, pair.Value);
+            }
         }
         AddedUnlocks.Clear();
         _appliedList = null;
@@ -257,20 +296,32 @@ public static class ResearchService
             Apply(_pending);
         }
         if (Time.unscaledTime < _nextGrant)
+        {
             return;
+        }
+
         _nextGrant = Time.unscaledTime + GrantInterval;
         ResolvePendingGrants();
         if (Grants.Count == 0 || !NativeServices.IsServer)
+        {
             return;
+        }
+
         if (_state == null)
         {
             _state = FindState();
             if (_state == null)
+            {
                 return;
+            }
         }
         foreach (var grant in Grants)
+        {
             if (TechRules.GrantDue(_state.IsResearched(grant.Value), _state.IsResearched(grant.Key)))
+            {
                 _state.ServerMarkResearchAsDone(grant.Key);
+            }
+        }
     }
 
     private static ResearchNetworkedState FindState() =>
@@ -281,20 +332,28 @@ public static class ResearchService
     private static void ResolvePendingGrants()
     {
         if (PendingGrants.Count == 0 || _appliedList?.list == null)
+        {
             return;
+        }
+
         foreach (var pair in PendingGrants.ToList())
         {
             ResearchSettings tech = _appliedList.list.FirstOrDefault(s =>
                 s != null && s.techName == pair.Value.TechName
             );
             if (tech == null)
+            {
                 continue;
+            }
+
             Grants[pair.Key] = tech.id;
             PendingGrants.Remove(pair.Key);
             // Late discovery must produce the same visible preview as an
             // early one: merge our parts into the prerequisite's unlocks.
             if (pair.Value.Parts != null)
+            {
                 MergeUnlocks(tech, pair.Value.Parts);
+            }
         }
     }
 }
@@ -307,12 +366,18 @@ internal static class ResearchLayout
     public static void Settle(ResearchSettingsList list)
     {
         if (list?.list == null)
+        {
             return;
+        }
+
         var shown = list.list.Where(IsShown).ToList();
         foreach (var tech in ResearchService.All.Where(IsShown).OrderBy(t => t.id).ToList())
         {
             if (Free(tech.positionInTechTree, tech, shown))
+            {
                 continue;
+            }
+
             int minX =
                 tech.requirements != null && tech.requirements.Length != 0
                     ? tech.requirements.Where(IsShown).Select(r => r.positionInTechTree.x + 1).DefaultIfEmpty(0).Max()
@@ -320,21 +385,29 @@ internal static class ResearchLayout
             Vector2Int? best = null;
             float bestScore = float.MaxValue;
             for (int x = minX; x <= 7; x++)
-            for (int y = 0; y <= 6; y++)
             {
-                var cell = new Vector2Int(x, y);
-                if (!Free(cell, tech, shown))
-                    continue;
-                float score =
-                    Mathf.Abs(x - tech.positionInTechTree.x) * 1.5f + Mathf.Abs(y - tech.positionInTechTree.y);
-                if (score < bestScore)
+                for (int y = 0; y <= 6; y++)
                 {
-                    best = cell;
-                    bestScore = score;
+                    var cell = new Vector2Int(x, y);
+                    if (!Free(cell, tech, shown))
+                    {
+                        continue;
+                    }
+
+                    float score =
+                        Mathf.Abs(x - tech.positionInTechTree.x) * 1.5f + Mathf.Abs(y - tech.positionInTechTree.y);
+                    if (score < bestScore)
+                    {
+                        best = cell;
+                        bestScore = score;
+                    }
                 }
             }
+
             if (best.HasValue)
+            {
                 tech.positionInTechTree = best.Value;
+            }
         }
     }
 

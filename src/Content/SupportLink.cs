@@ -20,7 +20,10 @@ internal static class SupportLink
     public static bool EnsureInstalled()
     {
         if (_installed)
+        {
             return true;
+        }
+
         bool catalogue = Catalogue.Install();
         bool menu = MenuCatalog.Install();
         _installed = catalogue && menu;
@@ -32,7 +35,10 @@ internal static class SupportLink
     public static void RegisterDefinition(Content.ContentPartDef def)
     {
         if (def == null)
+        {
             return;
+        }
+
         EnsureInstalled();
         Registration.Register(
             new PartSpec

@@ -30,10 +30,13 @@ internal static class CallCatalogueChecks
             "cold catalogue retains native globally unique ID contract"
         );
         foreach (ushort id in new ushort[] { 45, 54, 62006, 62007, 62009 })
+        {
             check(
                 provider.GetPartSettingById(id) != null,
                 "cold catalogue retains unrelated stock/shared content " + id
             );
+        }
+
         foreach (ushort id in new ushort[] { 54, 62005 })
         {
             var duplicate = UnityEngine.Object.Instantiate(provider.GetPartSettingById(id));

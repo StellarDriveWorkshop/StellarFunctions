@@ -30,7 +30,10 @@ public static class CleanBehavioralChecks
     private static bool IsActionAuthorized(TestPlayerState state, uint targetShipId, ushort targetPartId, string action)
     {
         if (string.IsNullOrEmpty(action))
+        {
             return false;
+        }
+
         return state.Type == TestPlayerStateType.InteractingWithChest
             && state.EntityId == targetShipId
             && state.PartId == targetPartId;
@@ -89,7 +92,10 @@ public static class CleanBehavioralChecks
         bool GrantIfEligible(bool isServerAuthoritative, HashSet<ushort> state)
         {
             if (!isServerAuthoritative)
+            {
                 return false;
+            }
+
             if (state.Contains(PrereqTechId) && !state.Contains(FunctionsTechId))
             {
                 state.Add(FunctionsTechId);

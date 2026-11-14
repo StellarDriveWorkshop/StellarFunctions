@@ -23,8 +23,13 @@ public static class ResearchSpecs
     {
         var specs = new List<TechSpec>();
         foreach (ContentPack pack in packs ?? Enumerable.Empty<ContentPack>())
-        foreach (ContentResearchDef def in pack.Research)
-            specs.Add(Map(pack, def));
+        {
+            foreach (ContentResearchDef def in pack.Research)
+            {
+                specs.Add(Map(pack, def));
+            }
+        }
+
         return specs;
     }
 
@@ -37,9 +42,13 @@ public static class ResearchSpecs
                 Enum.TryParse(name, true, out ResearchUnlockableFeature feature)
                 && Enum.IsDefined(typeof(ResearchUnlockableFeature), feature)
             )
+            {
                 features.Add(feature);
+            }
             else
+            {
                 ContentLog.Warn(pack.Id, def.Name + ": unknown feature " + name);
+            }
         }
         return new TechSpec
         {

@@ -19,7 +19,9 @@ internal sealed class MeasuredScreenLine
         float demand = measure(content, preferred);
         _stationary = new ScreenLineFrame(content, preferred);
         if (demand <= 1f)
+        {
             return;
+        }
 
         if (measure(content, minimum) <= 1f)
         {
@@ -37,13 +39,17 @@ internal sealed class MeasuredScreenLine
     internal ScreenLineFrame Present(float steps, Func<string, float, float> measure)
     {
         if (_windows == null)
+        {
             return _stationary;
+        }
 
         // Limit catch-up so even a slow frame cannot skip a text element.
         int start = (int)_offset;
         _offset = (_offset + Math.Min(steps, 1f)) % _starts.Length;
         if (_windows[start] is ScreenLineFrame cached)
+        {
             return cached;
+        }
 
         // Find the longest fitting prefix at this offset. The gap is part
         // of the ticker so the end of a name stays distinct from its start.
@@ -57,7 +63,10 @@ internal sealed class MeasuredScreenLine
             // An unusually large single text element still needs a turn.
             float size = _fontSize / demand;
             while (size > .001f && measure(first, size) > 1f)
+            {
                 size *= .5f;
+            }
+
             result = new ScreenLineFrame(first, size);
         }
         else
@@ -72,7 +81,9 @@ internal sealed class MeasuredScreenLine
                     low = count;
                 }
                 else
+                {
                     high = count - 1;
+                }
             }
         }
 
@@ -85,9 +96,15 @@ internal sealed class MeasuredScreenLine
         int end = start + count;
         int first = _starts[start];
         if (end < _starts.Length)
+        {
             return _ticker.Substring(first, _starts[end] - first);
+        }
+
         if (end == _starts.Length)
+        {
             return _ticker.Substring(first);
+        }
+
         return _ticker.Substring(first) + _ticker.Substring(0, _starts[end - _starts.Length]);
     }
 

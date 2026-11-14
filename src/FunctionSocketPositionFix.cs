@@ -23,16 +23,24 @@ internal static class FunctionSocketPositionFix
     internal static void Install(string harmonyId)
     {
         if (_harmony != null)
+        {
             return;
+        }
+
         HarmonyLib.Harmony harmony = new HarmonyLib.Harmony(harmonyId);
         try
         {
             Type tracker = AccessTools.TypeByName("Ships.Cables.ConnectionsTracker");
             if (tracker == null)
+            {
                 throw new MissingMethodException("Ships.Cables.ConnectionsTracker");
+            }
+
             MethodInfo socketPosition = FindSocketPosition(tracker);
             if (socketPosition == null)
+            {
                 throw new MissingMethodException("ConnectionsTracker.GetSocketPosition");
+            }
 
             // Required for correct Function socket placement; a failure here must
             // stop the mod rather than leave parts with broken socket positions.
@@ -65,14 +73,19 @@ internal static class FunctionSocketPositionFix
         )
         {
             if (method.Name != "GetSocketPosition" || !method.IsStatic || method.ReturnType != typeof(Vector3))
+            {
                 continue;
+            }
+
             ParameterInfo[] parameters = method.GetParameters();
             if (
                 parameters.Length == 2
                 && parameters[0].ParameterType == typeof(IPartPlacement)
                 && parameters[1].ParameterType == typeof(SocketObject)
             )
+            {
                 return method;
+            }
         }
         return null;
     }
@@ -80,30 +93,49 @@ internal static class FunctionSocketPositionFix
     internal static void MarkSockets(GameObject prefab)
     {
         if (prefab == null)
+        {
             return;
+        }
+
         SocketObject[] sockets = prefab.GetComponentsInChildren<SocketObject>(true);
         for (int i = 0; i < sockets.Length; i++)
         {
             SocketObject socket = sockets[i];
             if (socket == null)
+            {
                 continue;
+            }
+
             FunctionSocketMarker marker = socket.GetComponent<FunctionSocketMarker>();
             if (marker == null)
+            {
                 marker = socket.gameObject.AddComponent<FunctionSocketMarker>();
+            }
+
             if (marker.Root == null)
+            {
                 marker.Root = prefab.transform;
+            }
         }
     }
 
     public static void AfterGetSocketPosition(IPartPlacement placement, SocketObject socketObject, ref Vector3 __result)
     {
         if (!_active || placement == null || socketObject == null)
+        {
             return;
+        }
+
         FunctionSocketMarker marker = socketObject.GetComponent<FunctionSocketMarker>();
         if (marker == null)
+        {
             marker = MarkFunctionsHolderSocket(socketObject);
+        }
+
         if (marker == null || marker.Root == null)
+        {
             return;
+        }
 
         Vector3 local = marker.Root.InverseTransformPoint(socketObject.transform.position);
         __result = placement.LocalPosition + placement.Rotation * local;
@@ -113,12 +145,21 @@ internal static class FunctionSocketPositionFix
     {
         Transform root = socketObject.transform.root;
         if (root == null || root.name != "StellarFunctionsPrefabHolder" || root.position.y > -50000f)
+        {
             return null;
+        }
+
         Transform prefab = socketObject.transform;
         while (prefab.parent != null && prefab.parent != root)
+        {
             prefab = prefab.parent;
+        }
+
         if (prefab == root || !IsFunctionsAsset(prefab.name))
+        {
             return null;
+        }
+
         MarkSockets(prefab.gameObject);
         return socketObject.GetComponent<FunctionSocketMarker>();
     }

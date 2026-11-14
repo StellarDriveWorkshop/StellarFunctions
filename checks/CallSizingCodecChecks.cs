@@ -128,33 +128,42 @@ public static class CallSizingCodecChecks
         var call = new FunctionCallState { InputCount = 2, ListeningMask = 7 };
         check(call.EmissionSockets.Length == 1 && call.EmissionSockets[0] == 3, "Call output socket remains socket 3");
         for (int count = 1; count <= 3; count++)
-        for (int mask = 0; mask <= 7; mask++)
         {
-            var sized = call with { InputCount = count, ListeningMask = (byte)mask };
-            byte effective = (byte)(
-                mask
-                & (
-                    count == 1 ? 1
-                    : count == 2 ? 3
-                    : 7
-                )
-            );
-            byte[] expected = new byte[(effective & 1) + ((effective >> 1) & 1) + ((effective >> 2) & 1)];
-            int at = 0;
-            for (byte socket = 0; socket < 3; socket++)
-                if ((effective & (1 << socket)) != 0)
-                    expected[at++] = socket;
-            byte[] sockets = sized.ListeningSockets;
-            bool same = ReferenceEquals(sockets, sized.ListeningSockets);
-            check(
-                same && sockets.Length == expected.Length,
-                $"Call listening mask {mask} with {count} inputs reuses its precomputed array and hides excess sockets"
-            );
-            for (int i = 0; i < expected.Length; i++)
-                check(
-                    sockets[i] == expected[i],
-                    $"Call listening mask {mask} with {count} inputs exposes only active socket {expected[i]}"
+            for (int mask = 0; mask <= 7; mask++)
+            {
+                var sized = call with { InputCount = count, ListeningMask = (byte)mask };
+                byte effective = (byte)(
+                    mask
+                    & (
+                        count == 1 ? 1
+                        : count == 2 ? 3
+                        : 7
+                    )
                 );
+                byte[] expected = new byte[(effective & 1) + ((effective >> 1) & 1) + ((effective >> 2) & 1)];
+                int at = 0;
+                for (byte socket = 0; socket < 3; socket++)
+                {
+                    if ((effective & (1 << socket)) != 0)
+                    {
+                        expected[at++] = socket;
+                    }
+                }
+
+                byte[] sockets = sized.ListeningSockets;
+                bool same = ReferenceEquals(sockets, sized.ListeningSockets);
+                check(
+                    same && sockets.Length == expected.Length,
+                    $"Call listening mask {mask} with {count} inputs reuses its precomputed array and hides excess sockets"
+                );
+                for (int i = 0; i < expected.Length; i++)
+                {
+                    check(
+                        sockets[i] == expected[i],
+                        $"Call listening mask {mask} with {count} inputs exposes only active socket {expected[i]}"
+                    );
+                }
+            }
         }
     }
 

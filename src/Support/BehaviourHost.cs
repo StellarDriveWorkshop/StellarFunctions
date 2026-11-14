@@ -43,7 +43,10 @@ public static class BehaviourHost
     public static void Bind(ushort partId, IPartBehaviour behaviour)
     {
         if (behaviour == null)
+        {
             return;
+        }
+
         Behaviours[partId] = behaviour;
         EnsurePatch();
         Safe(behaviour, "behaviour registration", behaviour.OnRegistered);
@@ -59,7 +62,9 @@ public static class BehaviourHost
         Tracking.Clear();
         Budget.Reset();
         foreach (IPartBehaviour behaviour in Behaviours.Values)
+        {
             Safe(behaviour, "world enter", behaviour.OnWorldEnter);
+        }
     }
 
     public static void WorldExit()
@@ -67,7 +72,9 @@ public static class BehaviourHost
         Tracking.Clear();
         Budget.Reset();
         foreach (IPartBehaviour behaviour in Behaviours.Values)
+        {
             Safe(behaviour, "world exit", behaviour.OnWorldExit);
+        }
     }
 
     public static bool PartStillExists(uint shipId, ushort partId)
@@ -81,7 +88,10 @@ public static class BehaviourHost
     private static void EnsurePatch()
     {
         if (_patched)
+        {
             return;
+        }
+
         var method = AccessTools.Method(typeof(TrackedShipServer), "UpdateParts", new Type[] { typeof(float) }, null);
         if (method == null)
         {
@@ -136,20 +146,31 @@ public static class BehaviourHost
     public static void AfterUpdateParts(TrackedShipServer __instance, float deltaTime)
     {
         if (__instance == null)
+        {
             return;
+        }
+
         uint shipId = ((IShipStateRead)__instance).Id;
         var probe = ContentProbe;
         if (probe == null)
+        {
             return;
+        }
+
         bool hasContent = false;
         foreach (StatefulPart candidate in __instance.StatefulParts)
+        {
             if (candidate?.Settings != null && probe(candidate.Settings.id))
             {
                 hasContent = true;
                 break;
             }
+        }
+
         if (!hasContent && !Tracking.HasPending(shipId))
+        {
             return;
+        }
 
         var present = new HashSet<ushort>();
         // Snapshot like the original PartsOn: a callback that mutates the
@@ -157,12 +178,18 @@ public static class BehaviourHost
         foreach (StatefulPart part in __instance.StatefulParts.ToList())
         {
             if (part?.Settings == null || !probe(part.Settings.id))
+            {
                 continue;
+            }
+
             ushort contentId = part.Settings.id;
             present.Add(part.Id);
             IPartBehaviour behaviour = Of(contentId);
             if (behaviour == null)
+            {
                 continue;
+            }
+
             LivePart live = new LivePart((IShipStateWrite)(object)__instance, shipId, part.Id, part);
             if (Tracking.Mark(shipId, part.Id))
             {
@@ -171,7 +198,10 @@ public static class BehaviourHost
                 NativeServices.Trace(behaviour.Scope, "placed on ship " + shipId + " as part " + part.Id);
             }
             if (Budget.Muted(contentId))
+            {
                 continue;
+            }
+
             try
             {
                 behaviour.ServerTick(live, deltaTime);

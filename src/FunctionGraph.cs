@@ -21,7 +21,10 @@ internal sealed class FunctionParameter
             || index > 3
             || (fallback.HasValue && !double.IsFinite(fallback.Value))
         )
+        {
             throw new FunctionFault("BAD PARAM");
+        }
+
         Id = id;
         Name = name;
         Index = index;
@@ -72,7 +75,10 @@ internal sealed class FunctionNode
     )
     {
         if (id == Guid.Empty || !double.IsFinite(initial))
+        {
             throw new FunctionFault("BAD NODE");
+        }
+
         Id = id;
         Op = op;
         _inputs = inputs?.ToArray() ?? Array.Empty<int>();
@@ -104,16 +110,26 @@ internal sealed class FunctionGraph
     internal FunctionParameter FindParameter(Guid id)
     {
         for (int i = 0; i < _parameters.Length; i++)
+        {
             if (_parameters[i].Id == id)
+            {
                 return _parameters[i];
+            }
+        }
+
         return null;
     }
 
     internal bool HasParameter(Guid id)
     {
         for (int i = 0; i < _parameters.Length; i++)
+        {
             if (_parameters[i].Id == id)
+            {
                 return true;
+            }
+        }
+
         return false;
     }
 
@@ -136,43 +152,74 @@ internal sealed class FunctionGraph
             || result < 0
             || result >= nodes.Length
         )
+        {
             throw new FunctionFault("BAD DEFINITION");
+        }
+
         _parameters = (parameters ?? Array.Empty<FunctionParameter>()).OrderBy(p => p.Index).ToArray();
         if (
             _parameters.Length > 3
             || !_parameters.Select(p => p.Index).SequenceEqual(Enumerable.Range(1, _parameters.Length))
             || _parameters.Select(p => p.Id).Distinct().Count() != _parameters.Length
         )
+        {
             throw new FunctionFault("BAD PARAM INDEX");
+        }
+
         _nodes = nodes.ToArray();
         if (_nodes.Select(n => n.Id).Distinct().Count() != _nodes.Length)
+        {
             throw new FunctionFault("DUPLICATE NODE");
+        }
+
         Id = id;
         Name = name;
         Result = result;
         Structure = structure ?? string.Empty;
         for (int i = 0; i < _nodes.Length; i++)
-        for (int k = 0; k < _nodes[i].InputCount; k++)
-            if (_nodes[i].Input(k) < -1 || _nodes[i].Input(k) >= _nodes.Length)
-                throw new FunctionFault("BAD EDGE");
+        {
+            for (int k = 0; k < _nodes[i].InputCount; k++)
+            {
+                if (_nodes[i].Input(k) < -1 || _nodes[i].Input(k) >= _nodes.Length)
+                {
+                    throw new FunctionFault("BAD EDGE");
+                }
+            }
+        }
+
         var marks = new byte[_nodes.Length];
         for (int i = 0; i < _nodes.Length; i++)
+        {
             CheckAcyclic(i, marks);
+        }
     }
 
     private void CheckAcyclic(int index, byte[] marks)
     {
         if (marks[index] == 2)
+        {
             return;
+        }
+
         if (marks[index] == 1)
+        {
             throw new FunctionFault("WIRE LOOP");
+        }
+
         marks[index] = 1;
         // Memory emits the previous value. Its write inputs belong to the later
         // commit phase, so they are not combinational dependencies of this output.
         if (_nodes[index].Op != FunctionOp.Memory)
+        {
             for (int i = 0; i < _nodes[index].InputCount; i++)
+            {
                 if (_nodes[index].Input(i) >= 0)
+                {
                     CheckAcyclic(_nodes[index].Input(i), marks);
+                }
+            }
+        }
+
         marks[index] = 2;
     }
 }
@@ -219,10 +266,16 @@ internal static class FunctionEvaluator
         {
             context = new Context(resolve, oldState, external, dt);
             if (!double.IsFinite(dt) || dt < 0)
+            {
                 throw new FunctionFault("BAD DELTA TIME");
+            }
+
             double result = context.Run(graph, arguments, string.Empty, 0, new HashSet<Guid>());
             if (!double.IsFinite(result))
+            {
                 throw new FunctionFault("NONFINITE OUTPUT");
+            }
+
             return new FunctionEvaluation(result, null, context.Proposed, context.Operations);
         }
         catch (FunctionFault error)
@@ -268,11 +321,16 @@ internal static class FunctionEvaluator
             foreach (var pair in _old)
             {
                 if (pair.Key == null || pair.Key.Length > 600 || !double.IsFinite(pair.Value))
+                {
                     throw new FunctionFault("BAD INSTANCE STATE");
+                }
+
                 Proposed[pair.Key] = pair.Value;
             }
             if (Proposed.Count > 4096)
+            {
                 throw new FunctionFault("STATE LIMIT");
+            }
         }
 
         internal double Run(
@@ -284,15 +342,27 @@ internal static class FunctionEvaluator
         )
         {
             if (graph == null)
+            {
                 throw new FunctionFault("MISSING FUNCTION");
+            }
+
             if (depth >= 8)
+            {
                 throw new FunctionFault("NESTING LIMIT");
+            }
+
             if (!stack.Add(graph.Id))
+            {
                 throw new FunctionFault("RECURSION");
+            }
+
             try
             {
                 if ((Operations += graph.Count) > MaxExpandedOperations)
+                {
                     throw new FunctionFault("OPERATION LIMIT");
+                }
+
                 var frame = new Frame(this, graph, args, path, depth, stack);
                 double output = frame.Value(graph.Result);
                 // All reads use the immutable old snapshot, including cycles through
@@ -302,10 +372,15 @@ internal static class FunctionEvaluator
                 {
                     FunctionNode node = graph.Node(i);
                     if (node.Op != FunctionOp.Memory)
+                    {
                         continue;
+                    }
+
                     double enable = frame.Value(node.Input(1));
                     if (enable >= 1)
+                    {
                         Write(path + node.Id.ToString("N"), frame.Value(node.Input(0)));
+                    }
                 }
                 return output;
             }
@@ -320,9 +395,15 @@ internal static class FunctionEvaluator
         private void Write(string key, double value)
         {
             if (!double.IsFinite(value))
+            {
                 throw new FunctionFault("NONFINITE STATE");
+            }
+
             if (!Proposed.ContainsKey(key) && Proposed.Count >= 4096)
+            {
                 throw new FunctionFault("STATE LIMIT");
+            }
+
             Proposed[key] = value;
         }
 
@@ -359,11 +440,20 @@ internal static class FunctionEvaluator
             internal double Value(int i)
             {
                 if (i < 0)
+                {
                     return 0;
+                }
+
                 if (_marks[i] == 2)
+                {
                     return _values[i];
+                }
+
                 if (_marks[i] == 1)
+                {
                     throw new FunctionFault("WIRE LOOP");
+                }
+
                 _marks[i] = 1;
                 FunctionNode n = _g.Node(i);
                 string key = _path + n.Id.ToString("N");
@@ -373,7 +463,10 @@ internal static class FunctionEvaluator
                     case FunctionOp.Parameter:
                         FunctionParameter p = _g.FindParameter(n.Reference);
                         if (p == null)
+                        {
                             throw new FunctionFault("MISSING PARAM");
+                        }
+
                         value = _args != null && _args.TryGetValue(p.Id, out double input) ? input : p.Default ?? 0;
                         break;
                     case FunctionOp.Constant:
@@ -393,7 +486,10 @@ internal static class FunctionEvaluator
                             _c.Write(key, x);
                         }
                         else
+                        {
                             value = Unary(n.Operation, x);
+                        }
+
                         break;
                     case FunctionOp.RawDelta:
                         double sample = Value(n.Input(0));
@@ -425,31 +521,54 @@ internal static class FunctionEvaluator
                             : MoreMathOperations.Unary(operation, Value(n.Input(0)), prior, previous, _c._dt);
                         value = step.Output;
                         if ((fields & 1) != 0)
+                        {
                             _c.Write(key, value);
+                        }
+
                         if (previousKey != null)
+                        {
                             _c.Write(previousKey, step.Previous);
+                        }
+
                         if (elapsedKey != null)
+                        {
                             _c.Write(elapsedKey, step.Elapsed);
+                        }
+
                         break;
                     case FunctionOp.External:
                         if (_c._external == null)
+                        {
                             throw new FunctionFault("MISSING SOURCE");
+                        }
+
                         value = _c._external(n.Reference);
                         break;
                     case FunctionOp.Nested:
                         FunctionGraph target = _c._resolve?.Invoke(_g, n.Reference);
                         if (target == null)
+                        {
                             throw new FunctionFault("MISSING FUNCTION");
+                        }
+
                         var supplied = new Dictionary<Guid, double>();
                         for (int k = 0; k < 3; k++)
                         {
                             Guid binding = n.Binding(k);
                             if (binding == Guid.Empty)
+                            {
                                 continue;
+                            }
+
                             if (!target.HasParameter(binding))
+                            {
                                 throw new FunctionFault("PARAM REMOVED");
+                            }
+
                             if ((n.WiredMask & (1 << k)) != 0)
+                            {
                                 supplied.Add(binding, Value(n.Input(k)));
+                            }
                         }
                         value = _c.Run(target, supplied, key + "/", _depth + 1, _stack);
                         break;
@@ -457,7 +576,10 @@ internal static class FunctionEvaluator
                         throw new FunctionFault("UNSUPPORTED NODE");
                 }
                 if (!double.IsFinite(value))
+                {
                     throw new FunctionFault("NONFINITE OUTPUT");
+                }
+
                 _values[i] = value;
                 _marks[i] = 2;
                 return value;

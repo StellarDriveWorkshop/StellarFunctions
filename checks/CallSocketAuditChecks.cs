@@ -41,7 +41,10 @@ internal static class CallSocketAuditChecks
         {
             var marker = s.GetComponent<FunctionSocketMarker>();
             if (marker != null && marker.Root != null)
+            {
                 return marker.Root.InverseTransformPoint(s.transform.position);
+            }
+
             return s.transform.position;
         }
 
@@ -49,10 +52,16 @@ internal static class CallSocketAuditChecks
         foreach (var p in Resources.FindObjectsOfTypeAll<PartSettings>())
         {
             if (p == null || p.part == null)
+            {
                 continue;
+            }
+
             var sockets = p.part.GetComponentsInChildren<SocketObject>(true);
             if (sockets == null || !sockets.Any(s => s != null && s.Type == CableType.Signal))
+            {
                 continue;
+            }
+
             parts.Add(p);
         }
         check(parts.Count > 0, "socket audit enumerated " + parts.Count + " signal-capable part settings");
@@ -73,21 +82,29 @@ internal static class CallSocketAuditChecks
                     .Where(s => s != null && s.Type == CableType.Signal)
                     .ToArray();
                 if (nearSockets.Length == 0)
-                    continue;
-                foreach (var cs in callSockets)
-                foreach (var ns in nearSockets)
                 {
-                    Vector3 np = frameRot * SocketPos(neighbor, ns);
-                    foreach (float yaw in new[] { 0f, 90f, 180f, 270f })
+                    continue;
+                }
+
+                foreach (var cs in callSockets)
+                {
+                    foreach (var ns in nearSockets)
                     {
-                        Vector3 yawed = Quaternion.AngleAxis(yaw, Vector3.up) * np;
-                        Vector3 offset = cs.Pos - yawed;
-                        float horizontal = Mathf.Sqrt(offset.x * offset.x + offset.z * offset.z);
-                        if (Mathf.Abs(offset.y) >= 0.05f || horizontal > 1.0f)
-                            continue;
-                        rows.Add(
-                            $"call{count} socket{cs.Id} ~ {neighbor.name}#{neighbor.id} socket{ns.Id} yaw{yaw:0} offset=({offset.x:F3},{offset.y:F3},{offset.z:F3})"
-                        );
+                        Vector3 np = frameRot * SocketPos(neighbor, ns);
+                        foreach (float yaw in new[] { 0f, 90f, 180f, 270f })
+                        {
+                            Vector3 yawed = Quaternion.AngleAxis(yaw, Vector3.up) * np;
+                            Vector3 offset = cs.Pos - yawed;
+                            float horizontal = Mathf.Sqrt(offset.x * offset.x + offset.z * offset.z);
+                            if (Mathf.Abs(offset.y) >= 0.05f || horizontal > 1.0f)
+                            {
+                                continue;
+                            }
+
+                            rows.Add(
+                                $"call{count} socket{cs.Id} ~ {neighbor.name}#{neighbor.id} socket{ns.Id} yaw{yaw:0} offset=({offset.x:F3},{offset.y:F3},{offset.z:F3})"
+                            );
+                        }
                     }
                 }
             }
@@ -97,13 +114,19 @@ internal static class CallSocketAuditChecks
         Directory.CreateDirectory(auditDir);
         File.WriteAllLines(Path.Combine(auditDir, "socket-audit.txt"), ordered);
         foreach (var row in ordered.Take(80))
+        {
             Debug.Log("[socket-audit] " + row);
+        }
+
         if (ordered.Length > 80)
+        {
             Debug.Log(
                 "[socket-audit] ... "
                     + (ordered.Length - 80)
                     + " more coincidences (full list in menu-probe-output/socket-audit.txt)"
             );
+        }
+
         check(true, "socket audit complete: " + ordered.Length + " sub-5cm socket coincidences across Call sizes 1-3");
     }
 }

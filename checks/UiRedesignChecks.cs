@@ -170,10 +170,16 @@ internal static class UiRedesignChecks
         );
         var grid = grids.FirstOrDefault(g => MenuLayout.Resolve(g.gameObject).Valid);
         if (grid == null)
+        {
             throw new Exception("Native inventory frame was not loaded; cannot qualify UI using a mock frame.");
+        }
+
         var eventObject = new GameObject("Private events", typeof(EventSystem));
         foreach (ushort id in new ushort[] { 62005, 62006, 62007, 62009 })
+        {
             Menu(grid.transform.root.gameObject, id);
+        }
+
         UnityEngine.Object.DestroyImmediate(eventObject);
         UiHarmony.UnpatchSelf();
     }
@@ -251,7 +257,9 @@ internal static class UiRedesignChecks
         UnityEngine.Object.DestroyImmediate(owner);
         UnityEngine.Object.DestroyImmediate(frame);
         if (services != null)
+        {
             UnityEngine.Object.DestroyImmediate(services);
+        }
     }
 
     private static void Menu(GameObject donor, ushort id)
@@ -267,11 +275,16 @@ internal static class UiRedesignChecks
         scale.referenceResolution = new Vector2(1920, 1080);
         scale.matchWidthOrHeight = .5f;
         if (clone.GetComponent<GraphicRaycaster>() == null)
+        {
             clone.AddComponent<GraphicRaycaster>();
+        }
         // Asset scripts normally need live services. The menu host consumes only the
         // frame here, so remove InventoryGrid before enabling its native Start.
         foreach (var component in clone.GetComponentsInChildren<InventoryGrid>(true))
+        {
             UnityEngine.Object.DestroyImmediate(component);
+        }
+
         var settings = Support.Registration.Get(id);
         var part = new StatefulPart(
             1,
@@ -507,7 +520,10 @@ internal static class UiRedesignChecks
                 object savedSnapshot = currentProperty.GetValue(null);
                 var draftField = root.GetComponentInChildren<TMP_InputField>();
                 if (draftField != null && EventSystem.current != null)
+                {
                     EventSystem.current.SetSelectedGameObject(draftField.gameObject);
+                }
+
                 currentProperty.GetSetMethod(true).Invoke(null, new object[] { null });
                 AccessTools.Field(pendingEdit.GetType(), "At").SetValue(pendingEdit, Time.unscaledTime - 6f);
                 AccessTools.Method(Editor, "Tick").Invoke(null, null);
@@ -548,7 +564,9 @@ internal static class UiRedesignChecks
                     "restoring an authoritative directory re-enables the broadcast control"
                 );
                 if (EventSystem.current != null)
+                {
                     EventSystem.current.SetSelectedGameObject(null);
+                }
             }
         }
         root = (GameObject)AccessTools.Field(Editor, "_root").GetValue(null);
@@ -585,7 +603,10 @@ internal static class UiRedesignChecks
         foreach (
             var size in new[] { new Vector2Int(1280, 720), new Vector2Int(1920, 1080), new Vector2Int(2560, 1440) }
         )
+        {
             RenderCanvas(canvas, id + "-" + size.x, size.x, size.y);
+        }
+
         if (id == 62005)
         {
             TransmitterDirectoryChecks.Run(content, Check);
@@ -600,7 +621,9 @@ internal static class UiRedesignChecks
             dropdown.Show();
             Canvas.ForceUpdateCanvases();
             foreach (var fade in canvas.GetComponentsInChildren<CanvasGroup>())
+            {
                 fade.alpha = 1; // capture the completed open animation in this same-frame fixture
+            }
 
             Check(dropdown.IsExpanded, "native dropdown expands into selectable options");
             File.WriteAllLines(
@@ -700,7 +723,10 @@ internal static class UiRedesignChecks
             ResponsiveEditorChecks.Run(content, Check);
         }
         if (id == 62007 || id == 62009)
+        {
             BroadcastMenuLifecycleChecks.Run(content, Check);
+        }
+
         AccessTools.Method(Editor, "Reset").Invoke(null, null);
         ContentConfigMenu.Forget();
         UnityEngine.Object.DestroyImmediate(canvasObject);
@@ -714,14 +740,20 @@ internal static class UiRedesignChecks
         void Refresh(bool rebuild = false)
         {
             if (EventSystem.current != null)
+            {
                 EventSystem.current.SetSelectedGameObject(null);
+            }
+
             var existing = (GameObject)AccessTools.Field(Editor, "_root").GetValue(null);
             foreach (
                 var dropdown in existing == null
                     ? Array.Empty<TMP_Dropdown>()
                     : existing.GetComponentsInChildren<TMP_Dropdown>(true)
             )
+            {
                 dropdown.Hide();
+            }
+
             if (rebuild)
             {
                 AccessTools.Field(Editor, "_callRevision").SetValue(null, "");
@@ -863,24 +895,45 @@ internal static class UiRedesignChecks
     {
         var method = AccessTools.Method(typeof(ContentConfigMenu), "TryAppendClient");
         if (method == null)
+        {
             throw new MissingMethodException(typeof(ContentConfigMenu).FullName, "TryAppendClient");
+        }
+
         var arguments = method
             .GetParameters()
             .Select(parameter =>
             {
                 Type type = parameter.ParameterType;
                 if (type == typeof(GameObject))
+                {
                     return (object)donor;
+                }
+
                 if (type == typeof(Transform))
+                {
                     return donor.transform;
+                }
+
                 if (type == typeof(ContentPart))
+                {
                     return content;
+                }
+
                 if (typeof(PartBehaviour).IsAssignableFrom(type))
+                {
                     return behaviour;
+                }
+
                 if (type == typeof(bool))
+                {
                     return true;
+                }
+
                 if (parameter.HasDefaultValue)
+                {
                     return parameter.DefaultValue;
+                }
+
                 return type.IsValueType ? Activator.CreateInstance(type) : null;
             })
             .ToArray();
@@ -925,7 +978,10 @@ internal static class UiRedesignChecks
             )
             .ToArray();
         foreach (var overlay in overlays)
+        {
             overlay.Rect.SetParent(canvas.transform, true);
+        }
+
         var cameraObject = new GameObject("Private UI camera");
         var camera = cameraObject.AddComponent<Camera>();
         var target = new RenderTexture(width, height, 24);
@@ -1259,7 +1315,10 @@ internal static class UiRedesignChecks
                         new[] { typeof(float) }
                     );
                     for (int i = 0; i < 20; i++)
+                    {
                         present.Invoke(surface, new object[] { .25f });
+                    }
+
                     Check(
                         label.text == "Clamp Tes" && label.firstOverflowCharacterIndex < 0,
                         "three-input Call keeps Clamp Tes stationary and within its text rectangle"

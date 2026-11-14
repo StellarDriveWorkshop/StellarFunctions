@@ -49,7 +49,9 @@ internal static class NativeFunctionRuntime
         {
             current = parent;
             if (++hops > 4096)
+            {
                 throw new FunctionFault("BAD ROTOR TREE");
+            }
         }
         return current;
     }
@@ -57,7 +59,9 @@ internal static class NativeFunctionRuntime
     internal static void Dirty()
     {
         if (!_internalChange)
+        {
             _dirty = true;
+        }
     }
 
     internal static void Reset()
@@ -68,10 +72,16 @@ internal static class NativeFunctionRuntime
             _ships.OnShipShipStateReadUntracked -= Untracked;
         }
         foreach (var state in WatchedStates.Values)
+        {
             Unwatch(state);
+        }
+
         WatchedStates.Clear();
         if (_connections != null)
+        {
             _connections.OnSignalGroupUpdated -= GroupChanged;
+        }
+
         _ships = null;
         _connections = null;
         _readEmitter = null;
@@ -97,11 +107,17 @@ internal static class NativeFunctionRuntime
         // A later tracker-field subscription misses already loaded ships. Attach
         // to the actual state and cover subsequent loads with OnShipTracked.
         if (ship == null || ship.State == null)
+        {
             return;
+        }
+
         if (WatchedStates.TryGetValue(ship.Id, out var previous))
         {
             if (ReferenceEquals(previous, ship.State))
+            {
                 return;
+            }
+
             Unwatch(previous);
         }
         WatchedStates[ship.Id] = ship.State;
@@ -147,7 +163,10 @@ internal static class NativeFunctionRuntime
                 || before.Slot2 != call.Slot2
                 || before.InputCount != call.InputCount
             )
+            {
                 Dirty();
+            }
+
             return;
         }
         bool relevant =
@@ -156,7 +175,9 @@ internal static class NativeFunctionRuntime
             || next is RotorState
             || IsOwned(new PartContext(ship, part));
         if (relevant && !string.Equals(Semantics(previous), Semantics(next), StringComparison.Ordinal))
+        {
             Dirty();
+        }
     }
 
     private static string Semantics(IStatefulPartState state)
@@ -221,7 +242,9 @@ internal static class NativeFunctionRuntime
         {
             RefreshCore();
             if (!_dirty || _ships == null || _connections == null)
+            {
                 return;
+            }
         }
         throw new FunctionFault("UNSTABLE SIGNATURES");
     }
@@ -231,7 +254,10 @@ internal static class NativeFunctionRuntime
         var ships = ServiceLocator.GetService<ShipsServerTracker>();
         var connections = ServiceLocator.GetService<ConnectionsServerTracker>();
         if (ships == null || connections == null)
+        {
             return;
+        }
+
         if (!ReferenceEquals(_ships, ships) || !ReferenceEquals(_connections, connections))
         {
             Reset();
@@ -246,18 +272,27 @@ internal static class NativeFunctionRuntime
                 new[] { typeof(EntityPartSocket) }
             );
             if (values == null || read?.ReturnType != typeof(double))
+            {
                 throw new MissingMethodException("Native emitter read contract");
+            }
+
             _readEmitter =
                 (Func<EntityPartSocket, double>)
                     Delegate.CreateDelegate(typeof(Func<EntityPartSocket, double>), values, read);
             ships.OnShipTracked += Tracked;
             ships.OnShipShipStateReadUntracked += Untracked;
             foreach (var ship in ships.Ships)
+            {
                 Tracked(ship);
+            }
+
             connections.OnSignalGroupUpdated += GroupChanged;
         }
         if (!_dirty)
+        {
             return;
+        }
+
         _dirty = false;
         _internalChange = true;
         try
@@ -266,22 +301,34 @@ internal static class NativeFunctionRuntime
             TrackedShipServer[] all = ships.Ships.OrderBy(s => s.Id).ToArray();
             var present = new HashSet<uint>(all.Select(s => s.Id));
             foreach (TrackedShipServer ship in all)
-            foreach (StatefulPart part in ship.StatefulParts)
-                if (
-                    part.State is RotorState rotor
-                    && rotor.AnchoredShipId != ship.Id
-                    && present.Contains(rotor.AnchoredShipId)
-                )
+            {
+                foreach (StatefulPart part in ship.StatefulParts)
                 {
-                    uint a = AssemblyOf(ship.Id),
-                        b = AssemblyOf(rotor.AnchoredShipId);
-                    if (a != b)
-                        Parents[Math.Max(a, b)] = Math.Min(a, b);
+                    if (
+                        part.State is RotorState rotor
+                        && rotor.AnchoredShipId != ship.Id
+                        && present.Contains(rotor.AnchoredShipId)
+                    )
+                    {
+                        uint a = AssemblyOf(ship.Id),
+                            b = AssemblyOf(rotor.AnchoredShipId);
+                        if (a != b)
+                        {
+                            Parents[Math.Max(a, b)] = Math.Min(a, b);
+                        }
+                    }
                 }
+            }
+
             TransmitterAssemblies.Clear();
             foreach (var ship in all)
+            {
                 if (ship.StatefulParts.Any(p => p.State is FunctionTransmitterState t && !t.IsHeldByPlayer))
+                {
                     TransmitterAssemblies.Add(AssemblyOf(ship.Id));
+                }
+            }
+
             var returns = all.SelectMany(s =>
                     s.StatefulParts.Where(p => p.State is FunctionReturnState)
                         .Select(p => new NativeFunctionDefinition
@@ -309,9 +356,15 @@ internal static class NativeFunctionRuntime
                 try
                 {
                     if (duplicateIds.Contains(def.State.DefinitionId))
+                    {
                         throw new FunctionFault("DUPLICATE ID");
+                    }
+
                     if (duplicateNames.Contains(def.Assembly + ":" + def.State.Name))
+                    {
                         throw new FunctionFault("DUPLICATE NAME");
+                    }
+
                     def.Graph = new NativeFunctionCompiler(ships, connections, AssemblyOf, def).Compile();
                 }
                 catch (FunctionFault error)
@@ -323,14 +376,20 @@ internal static class NativeFunctionRuntime
                     def.Error = "COMPILE ERROR";
                 }
                 if (def.Error != null && previous.TryGetValue(def.State.DefinitionId, out var old))
+                {
                     def.Claims.UnionWith(old.Claims);
+                }
+
                 if (!next.ContainsKey(def.State.DefinitionId))
+                {
                     next.Add(def.State.DefinitionId, def);
+                }
             }
             Definitions = next;
             foreach (NativeFunctionDefinition def in returns)
             {
                 if (def.Error == null)
+                {
                     try
                     {
                         def.ExpandedCost = Expanded(def, new HashSet<Guid>(), 0);
@@ -340,8 +399,12 @@ internal static class NativeFunctionRuntime
                     {
                         def.Error = error.Message;
                     }
+                }
+
                 if (def.Error != null && previous.TryGetValue(def.State.DefinitionId, out var old))
+                {
                     def.Claims.UnionWith(old.Claims);
+                }
             }
             Owners.Clear();
             ExternalSources.Clear();
@@ -350,11 +413,17 @@ internal static class NativeFunctionRuntime
                 foreach (PartContext node in def.Claims)
                 {
                     if (!Owners.TryGetValue(node, out var owners))
+                    {
                         Owners[node] = owners = new HashSet<Guid>();
+                    }
+
                     owners.Add(def.State.DefinitionId);
                 }
                 foreach (var source in def.External)
+                {
                     ExternalSources[source.Key] = source.Value;
+                }
+
                 FunctionReturnState state = def.State with { Status = def.Error ?? "TEMPLATE" };
                 def.State = state;
                 if (
@@ -362,60 +431,77 @@ internal static class NativeFunctionRuntime
                     && owner.TryGetStatefulPart(def.Address.PartId, out var p)
                     && !Equals(p.State, state)
                 )
+                {
                     owner.UpdatePartState(p.Id, state);
+                }
             }
             CallErrors.Clear();
             int reserved = 0;
             foreach (TrackedShipServer ship in all)
-            foreach (
-                StatefulPart part in ship.StatefulParts.Where(p => p.State is FunctionCallState).OrderBy(p => p.Id)
-            )
             {
-                var address = new PartContext(ship.Id, part.Id);
-                var call = (FunctionCallState)part.State;
-                if (TryDefinition(call.SelectedFunctionId, ship.Id, out var def) && def.Error == null)
+                foreach (
+                    StatefulPart part in ship.StatefulParts.Where(p => p.State is FunctionCallState).OrderBy(p => p.Id)
+                )
                 {
-                    FunctionCallState bound = Bind(call, def.Graph, false);
-                    if (!Equals(call, bound))
+                    var address = new PartContext(ship.Id, part.Id);
+                    var call = (FunctionCallState)part.State;
+                    if (TryDefinition(call.SelectedFunctionId, ship.Id, out var def) && def.Error == null)
                     {
-                        ship.UpdatePartState(part.Id, bound);
-                        _dirty = true;
-                    }
-                    if (IsOwned(address))
-                        continue;
-                    int cost = def.ExpandedCost;
-                    if (reserved + cost > 32768)
-                    {
-                        CallErrors[address] = "WORLD OPERATION LIMIT";
-                        continue;
-                    }
-                    reserved += cost;
-                    try
-                    {
-                        ValidateNativeDependencies(address);
-                    }
-                    catch (FunctionFault error)
-                    {
-                        CallErrors[address] = error.Message;
+                        FunctionCallState bound = Bind(call, def.Graph, false);
+                        if (!Equals(call, bound))
+                        {
+                            ship.UpdatePartState(part.Id, bound);
+                            _dirty = true;
+                        }
+                        if (IsOwned(address))
+                        {
+                            continue;
+                        }
+
+                        int cost = def.ExpandedCost;
+                        if (reserved + cost > 32768)
+                        {
+                            CallErrors[address] = "WORLD OPERATION LIMIT";
+                            continue;
+                        }
+                        reserved += cost;
+                        try
+                        {
+                            ValidateNativeDependencies(address);
+                        }
+                        catch (FunctionFault error)
+                        {
+                            CallErrors[address] = error.Message;
+                        }
                     }
                 }
             }
+
             ReconcileRelays();
             FunctionCatalog.Replace(returns.Where(d => d.Graph != null && d.Error == null));
             foreach (var ship in all)
-            foreach (var part in ship.StatefulParts.Where(p => p.State is FunctionTransmitterState).ToArray())
             {
-                var state = (FunctionTransmitterState)part.State;
-                var local = returns.Where(d => d.Assembly == AssemblyOf(ship.Id)).ToArray();
-                string summary =
-                    local.Count(IsPublished)
-                    + " broadcasting · "
-                    + local.Count(d => d.Error == null && !IsPublished(d))
-                    + " private"
-                    + (local.Any(d => d.Error != null) ? " · " + local.Count(d => d.Error != null) + " invalid" : "");
-                if (state.Summary != summary)
-                    ship.UpdatePartState(part.Id, state with { Summary = summary });
+                foreach (var part in ship.StatefulParts.Where(p => p.State is FunctionTransmitterState).ToArray())
+                {
+                    var state = (FunctionTransmitterState)part.State;
+                    var local = returns.Where(d => d.Assembly == AssemblyOf(ship.Id)).ToArray();
+                    string summary =
+                        local.Count(IsPublished)
+                        + " broadcasting · "
+                        + local.Count(d => d.Error == null && !IsPublished(d))
+                        + " private"
+                        + (
+                            local.Any(d => d.Error != null)
+                                ? " · " + local.Count(d => d.Error != null) + " invalid"
+                                : ""
+                        );
+                    if (state.Summary != summary)
+                    {
+                        ship.UpdatePartState(part.Id, state with { Summary = summary });
+                    }
+                }
             }
+
             NativeTemplateHooks.InvalidateSchedule();
         }
         finally
@@ -427,26 +513,43 @@ internal static class NativeFunctionRuntime
     private static int Expanded(NativeFunctionDefinition def, HashSet<Guid> stack, int depth)
     {
         if (def.Error != null || def.Graph == null)
+        {
             throw new FunctionFault(def.Error ?? "MISSING FUNCTION");
+        }
+
         if (depth >= 8)
+        {
             throw new FunctionFault("NESTING LIMIT");
+        }
+
         if (!stack.Add(def.Graph.Id))
+        {
             throw new FunctionFault("RECURSION");
+        }
+
         try
         {
             int count = def.Graph.Count;
             for (int i = 0; i < def.Graph.Count; i++)
+            {
                 if (def.Graph.Node(i).Op == FunctionOp.Nested)
                 {
                     if (
                         !Definitions.TryGetValue(def.Graph.Node(i).Reference, out var target)
                         || (target.Assembly != def.Assembly && !IsPublished(target))
                     )
+                    {
                         throw new FunctionFault("MISSING FUNCTION");
+                    }
+
                     count += Expanded(target, stack, depth + 1);
                     if (count > 4096)
+                    {
                         throw new FunctionFault("OPERATION LIMIT");
+                    }
                 }
+            }
+
             return count;
         }
         finally
@@ -478,9 +581,11 @@ internal static class NativeFunctionRuntime
                 .Select(b => b.Name)
                 .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
             if (name != null)
+            {
                 return new string(name.Where(c => !char.IsControl(c)).Take(64).ToArray())
                     + " · structure #"
                     + AssemblyOf(ship);
+            }
         }
         return "Structure #" + AssemblyOf(ship);
     }
@@ -500,17 +605,27 @@ internal static class NativeFunctionRuntime
         {
             slots = new string[3];
             for (int i = 0; i < graph.ParameterCount; i++)
+            {
                 slots[i] = graph.Parameter(i).Id.ToString("N");
+            }
         }
         byte mask = 0;
         for (int i = 0; i < state.InputCount; i++)
+        {
             if (graph.HasParameter(NativeFunctionCompiler.ParseId(slots[i])))
+            {
                 mask |= (byte)(1 << i);
+            }
+        }
+
         string Label(int slot)
         {
             Guid id = NativeFunctionCompiler.ParseId(slots[slot]);
             if (id == Guid.Empty)
+            {
                 return "Unused";
+            }
+
             FunctionParameter p = graph.FindParameter(id);
             return p == null
                 ? "Param removed: reset mapping"
@@ -560,11 +675,20 @@ internal static class NativeFunctionRuntime
     {
         PendingMemory.Remove(address);
         if (CallErrors.TryGetValue(address, out string denied))
+        {
             return call with { Output = 0, Status = denied, LastSignalPass = pass };
+        }
+
         if (!TryDefinition(call.SelectedFunctionId, address.ShipId, out var def))
+        {
             return call with { Output = 0, Status = "MISSING FUNCTION", LastSignalPass = pass };
+        }
+
         if (def.Error != null)
+        {
             return call with { Output = 0, Status = def.Error, LastSignalPass = pass };
+        }
+
         try
         {
             call = Bind(call, def.Graph, false);
@@ -574,11 +698,19 @@ internal static class NativeFunctionRuntime
             {
                 Guid id = NativeFunctionCompiler.ParseId(slots[i]);
                 if (id == Guid.Empty)
+                {
                     continue;
+                }
+
                 if (!def.Graph.HasParameter(id))
+                {
                     throw new FunctionFault("PARAM REMOVED");
+                }
+
                 if (Wired(new EntityPartSocket(address.ShipId, address.PartId, (byte)i)))
+                {
                     args.Add(id, inputs[i]);
+                }
             }
             string structure = def.Structure;
             var old = string.Equals(call.StructureKey, structure, StringComparison.Ordinal)
@@ -589,7 +721,10 @@ internal static class NativeFunctionRuntime
                 (caller, id) =>
                 {
                     if (!Definitions.TryGetValue(id, out var nested) || nested.Error != null)
+                    {
                         return null;
+                    }
+
                     uint callerAssembly =
                         caller != null && Definitions.TryGetValue(caller.Id, out var callerDef)
                             ? callerDef.Assembly
@@ -602,10 +737,16 @@ internal static class NativeFunctionRuntime
                 dt
             );
             if (result.Error != null)
+            {
                 return call with { Output = 0, Status = result.Error, LastSignalPass = pass };
+            }
+
             string next = JsonConvert.SerializeObject(result.ProposedState, Formatting.None);
             if (next.Length > 262144)
+            {
                 throw new FunctionFault("STATE SIZE LIMIT");
+            }
+
             PendingMemory[address] = next;
             return call with
             {
@@ -634,7 +775,10 @@ internal static class NativeFunctionRuntime
     private static string ExpandedStructure(NativeFunctionDefinition def, HashSet<Guid> seen)
     {
         if (!seen.Add(def.Graph.Id))
+        {
             throw new FunctionFault("RECURSION");
+        }
+
         try
         {
             return NativeFunctionCompiler.Hash(
@@ -650,7 +794,10 @@ internal static class NativeFunctionRuntime
                                     !Definitions.TryGetValue(def.Graph.Node(i).Reference, out var target)
                                     || (target.Assembly != def.Assembly && !IsPublished(target))
                                 )
+                                {
                                     throw new FunctionFault("MISSING FUNCTION");
+                                }
+
                                 return ExpandedStructure(target, seen);
                             })
                     )
@@ -665,7 +812,10 @@ internal static class NativeFunctionRuntime
     private static Dictionary<string, double> ReadMemory(string json)
     {
         if (json == null || json.Length > 262144)
+        {
             throw new FunctionFault("STATE SIZE LIMIT");
+        }
+
         return JsonConvert.DeserializeObject<Dictionary<string, double>>(
                 json,
                 new JsonSerializerSettings { MaxDepth = 8 }
@@ -675,7 +825,9 @@ internal static class NativeFunctionRuntime
     private static double ReadExternal(Guid id)
     {
         if (!ExternalSources.TryGetValue(id, out var socket) || IsOwned(socket.PartContext))
+        {
             throw new FunctionFault("MISSING SOURCE");
+        }
         // A reference names one real emitter, not the aggregate of every output
         // sharing its cable group. Native scheduling refreshes it beforehand.
         return _readEmitter(socket);
@@ -688,15 +840,22 @@ internal static class NativeFunctionRuntime
         void Walk(NativeFunctionDefinition def)
         {
             if (def.Graph == null || !seen.Add(def.Graph.Id))
+            {
                 return;
+            }
+
             sources.UnionWith(def.External.Values);
             for (int i = 0; i < def.Graph.Count; i++)
+            {
                 if (
                     def.Graph.Node(i).Op == FunctionOp.Nested
                     && Definitions.TryGetValue(def.Graph.Node(i).Reference, out var child)
                     && (child.Assembly == def.Assembly || IsPublished(child))
                 )
+                {
                     Walk(child);
+                }
+            }
         }
         Walk(definition);
         return sources;
@@ -712,7 +871,10 @@ internal static class NativeFunctionRuntime
             || !TryDefinition(state.SelectedFunctionId, call.ShipId, out var def)
             || def.Error != null
         )
+        {
             return Array.Empty<PartContext>();
+        }
+
         return SourcesFor(def).Select(s => s.PartContext).Distinct().ToArray();
     }
 
@@ -724,23 +886,38 @@ internal static class NativeFunctionRuntime
         void Visit(PartContext address, int depth = 0)
         {
             if (depth > 256)
+            {
                 throw new FunctionFault("DEPENDENCY DEPTH LIMIT");
+            }
+
             if (finished.Contains(address) || IsOwned(address))
+            {
                 return;
+            }
+
             if (!active.Add(address))
+            {
                 throw new FunctionFault("EXTERNAL DEPENDENCY CYCLE");
+            }
+
             if (++visited > 4096)
+            {
                 throw new FunctionFault("DEPENDENCY LIMIT");
+            }
+
             if (
                 !_ships.TryGetTrackedShip(address.ShipId, out var ship)
                 || !ship.TryGetStatefulPart(address.PartId, out var part)
             )
+            {
                 throw new FunctionFault("MISSING SOURCE");
+            }
             // Native Memory reads the previous committed value; its write path
             // is the deliberate cycle boundary, matching the template executor.
             if (part.State is not MemoryRegisterState && part.State is ISignalProcessorState processor)
             {
                 foreach (byte socket in processor.ListeningSockets)
+                {
                     if (
                         _connections.TryGetSignalConnectionGroupWithSocket(
                             new EntityPartSocket(address.ShipId, address.PartId, socket),
@@ -750,11 +927,19 @@ internal static class NativeFunctionRuntime
                     {
                         _connections.GetSignalGroupInputsAndOutputs(group.Id, out var inputs, out _);
                         foreach (var source in inputs.Distinct())
+                        {
                             Visit(source.PartContext, depth + 1);
+                        }
                     }
+                }
+
                 if (part.State is FunctionCallState)
+                {
                     foreach (var source in ExternalParts(address))
+                    {
                         Visit(source, depth + 1);
+                    }
+                }
             }
             active.Remove(address);
             finished.Add(address);
@@ -772,24 +957,39 @@ internal static class NativeFunctionRuntime
             || !TryDefinition(state.SelectedFunctionId, call.ShipId, out var def)
             || def.Error != null
         )
+        {
             return Array.Empty<uint>();
+        }
+
         var visited = new HashSet<Guid>();
         var groups = new HashSet<uint>();
         void Walk(NativeFunctionDefinition d)
         {
             if (!visited.Add(d.Graph.Id))
+            {
                 return;
+            }
+
             foreach (var source in d.External.Values)
+            {
                 if (_connections.TryGetSignalConnectionGroupWithSocket(source, out var group))
+                {
                     groups.Add(group.Id);
+                }
+            }
+
             for (int i = 0; i < d.Graph.Count; i++)
+            {
                 if (
                     d.Graph.Node(i).Op == FunctionOp.Nested
                     && Definitions.TryGetValue(d.Graph.Node(i).Reference, out var child)
                     && child.Error == null
                     && (child.Assembly == d.Assembly || IsPublished(child))
                 )
+                {
                     Walk(child);
+                }
+            }
         }
         Walk(def);
         return groups.ToArray();
@@ -798,6 +998,7 @@ internal static class NativeFunctionRuntime
     internal static void CommitMemory()
     {
         foreach (var pair in PendingMemory.ToArray())
+        {
             if (
                 _ships != null
                 && _ships.TryGetTrackedShip(pair.Key.ShipId, out var ship)
@@ -805,7 +1006,11 @@ internal static class NativeFunctionRuntime
                 && part.State is FunctionCallState call
                 && call.RuntimeJson != pair.Value
             )
+            {
                 ship.UpdatePartState(part.Id, call with { RuntimeJson = pair.Value });
+            }
+        }
+
         PendingMemory.Clear();
     }
 
@@ -815,16 +1020,22 @@ internal static class NativeFunctionRuntime
     {
         var existing = new HashSet<SocketConnection>();
         foreach (var owned in Owners.Keys)
+        {
             if (
                 _connections.TryGetSignalConnectionGroupWithSocket(
                     new EntityPartSocket(owned.ShipId, owned.PartId, 0),
                     out var group
                 )
             )
+            {
                 existing.UnionWith(
                     group.AllConnections.Where(c => c.Type == SocketConnectionType.RelayedByTransmitter)
                 );
+            }
+        }
+
         foreach (var edge in existing)
+        {
             if (
                 (edge.SocketA.HasValue && IsOwned(edge.SocketA.Value.PartContext))
                 || (edge.SocketB.HasValue && IsOwned(edge.SocketB.Value.PartContext))
@@ -833,6 +1044,8 @@ internal static class NativeFunctionRuntime
                 RemovedRelays.Add(edge);
                 _connections.DeleteConnection(edge, CableType.Signal);
             }
+        }
+
         foreach (var edge in RemovedRelays.ToArray())
         {
             if (!edge.SocketA.HasValue || !edge.SocketB.HasValue)
@@ -843,7 +1056,10 @@ internal static class NativeFunctionRuntime
             var a = edge.SocketA.Value;
             var b = edge.SocketB.Value;
             if (IsOwned(a.PartContext) || IsOwned(b.PartContext))
+            {
                 continue;
+            }
+
             if (
                 _ships.TryGetTrackedShip(a.EntityId, out var sa)
                 && sa.TryGetStatefulPart(a.Socket.PartId, out var pa)
@@ -855,7 +1071,10 @@ internal static class NativeFunctionRuntime
                 && string.Equals(ta.Channel, tb.Channel, StringComparison.Ordinal)
                 && AssemblyOf(a.EntityId) == AssemblyOf(b.EntityId)
             )
+            {
                 _connections.CreateConnection(edge, CableType.Signal);
+            }
+
             RemovedRelays.Remove(edge);
         }
     }

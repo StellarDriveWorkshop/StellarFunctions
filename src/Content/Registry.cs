@@ -90,7 +90,10 @@ public static class ContentRuntime
     public static void Bind(ContentPartDef def, PartBehaviour behaviour)
     {
         if (def == null || behaviour == null)
+        {
             return;
+        }
+
         behaviour.Def = def;
         Support.BehaviourHost.Bind(def.Id, new Adapter(behaviour));
     }
@@ -104,10 +107,16 @@ public static class ContentRuntime
         resolved = default;
         StatefulPart part = default;
         if (ship == null || !((IShipStateRead)ship).TryGetStatefulPart(partId, out part) || part.Settings == null)
+        {
             return false;
+        }
+
         ContentPartDef def = ContentRegistry.PartDef(part.Settings.id);
         if (def == null)
+        {
             return false;
+        }
+
         uint shipId = ((IShipStateRead)ship).Id;
         resolved = new ContentPart
         {
@@ -167,7 +176,10 @@ public static class ContentRegistry
         }
         var pack = ContentPack.Parse(text, assembly.GetName().Name + "/" + resource, Errors);
         if (pack == null)
+        {
             return null;
+        }
+
         pack.Assembly = assembly;
         return Register(pack);
     }
@@ -175,7 +187,9 @@ public static class ContentRegistry
     public static void Behaviour(string key, Func<PartBehaviour> make)
     {
         if (!string.IsNullOrEmpty(key) && make != null)
+        {
             Makers[key] = make;
+        }
     }
 
     private static ContentPack Register(ContentPack pack)
@@ -209,7 +223,10 @@ public static class ContentRegistry
             BindBehaviour(pack, def);
         }
         foreach (string problem in pack.Problems)
+        {
             ContentLog.Warn(pack.Id, problem);
+        }
+
         ContentLog.Info(
             "registry",
             pack.Name
@@ -227,7 +244,10 @@ public static class ContentRegistry
     private static void BindBehaviour(ContentPack pack, ContentPartDef def)
     {
         if (string.IsNullOrEmpty(def.Behaviour))
+        {
             return;
+        }
+
         if (Makers.TryGetValue(def.Behaviour, out var make))
         {
             try
@@ -264,17 +284,25 @@ public static class ContentRegistry
     {
         Type type = preferred?.GetType(name, false, true);
         if (type != null)
+        {
             return type;
+        }
+
         type = Type.GetType(name, false, true);
         if (type != null)
+        {
             return type;
+        }
+
         foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
             try
             {
                 type = assembly.GetType(name, false, true);
                 if (type != null)
+                {
                     return type;
+                }
             }
             catch { }
         }
@@ -288,7 +316,10 @@ public static class ContentRegistry
     private static void EnsureInstalled()
     {
         if (_installed)
+        {
             return;
+        }
+
         _installed = true;
         ContentMenus.Install();
         ContentActions.Install();
@@ -312,7 +343,9 @@ public static class ContentRegistry
         foreach (ContentPartDef def in PartsById.Values)
         {
             if (!def.Attached && Support.Registration.Get(def.Id) == null)
+            {
                 ContentLog.Error(def.Pack.Id, def.Asset + " failed to build, donor " + def.Donor + " was not found");
+            }
         }
         Support.ResearchService.Apply(ResearchSpecs.FromPacks(Loaded));
         ContentRuntime.WorldEnter();
@@ -327,7 +360,10 @@ public static class ContentRegistry
         Game.PartLookup.Invalidate();
         Support.NativeServices.InvalidateServices();
         if (!_appliedThisWorld)
+        {
             return;
+        }
+
         _appliedThisWorld = false;
         Support.MenuCatalog.Restore();
         ContentRuntime.WorldExit();
@@ -344,10 +380,15 @@ public static class ContentRegistry
                 || n.EndsWith("." + resource.Replace('/', '.'), StringComparison.OrdinalIgnoreCase)
             );
         if (name == null)
+        {
             return null;
+        }
+
         using (var stream = assembly.GetManifestResourceStream(name))
         using (var reader = new StreamReader(stream))
+        {
             return reader.ReadToEnd();
+        }
     }
 
     private static void Fail(string message)

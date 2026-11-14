@@ -35,13 +35,22 @@ public static class ScreenText
         columns = DefaultColumns;
         speed = DefaultSpeed;
         if (name == null || !name.StartsWith(Prefix, StringComparison.Ordinal))
+        {
             return false;
+        }
+
         string[] parts = name.Substring(Prefix.Length).Split('|');
         channel = parts[0];
         if (parts.Length > 1)
+        {
             int.TryParse(parts[1], out columns);
+        }
+
         if (parts.Length > 2)
+        {
             float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out speed);
+        }
+
         return true;
     }
 
@@ -61,7 +70,10 @@ public static class ScreenText
         int start = (int)Math.Floor(offset);
         var builder = new StringBuilder(columns);
         for (int i = 0; i < columns; i++)
+        {
             builder.Append(ticker[(start + i) % ticker.Length]);
+        }
+
         return builder.ToString();
     }
 
@@ -88,7 +100,9 @@ public sealed class ChannelProviders<TScreen, TFrame>
     public void Provide(string channel, Func<TScreen, TFrame> provider)
     {
         if (!string.IsNullOrEmpty(channel) && provider != null)
+        {
             _providers[channel] = provider;
+        }
     }
 
     // Removes the provider only when `expected` equals the registered one.
@@ -98,7 +112,10 @@ public sealed class ChannelProviders<TScreen, TFrame>
     public bool Unprovide(string channel, Func<TScreen, TFrame> expected)
     {
         if (channel == null || expected == null)
+        {
             return false;
+        }
+
         return _providers.TryGetValue(channel, out var current)
             && current.Equals(expected)
             && _providers.Remove(channel);

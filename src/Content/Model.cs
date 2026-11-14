@@ -133,19 +133,25 @@ public sealed class ContentPack
             return null;
         }
         if (string.IsNullOrEmpty(pack.Name))
+        {
             pack.Name = pack.Id;
+        }
 
         foreach (JObject part in Children(root, "parts"))
         {
             var def = ParsePart(part, pack);
             if (def != null)
+            {
                 pack.Parts.Add(def);
+            }
         }
         foreach (JObject tech in Children(root, "research"))
         {
             var research = ParseResearch(tech, pack);
             if (research != null)
+            {
                 pack.Research.Add(research);
+            }
         }
         // "items" and "attach" sections are accepted but unused by this pack.
         return pack;
@@ -184,7 +190,9 @@ public sealed class ContentPack
                 def.SnappingDeclared = true;
             }
             else
+            {
                 pack.Problems.Add(asset + ": unknown snapping style " + snapping + ", keeping the donor's");
+            }
         }
 
         var bounds = o["bounds"] as JObject;
@@ -193,9 +201,15 @@ public sealed class ContentPack
             Vector3? center = Vec3(bounds["center"]);
             Vector3? size = Vec3(bounds["size"]);
             if (center.HasValue)
+            {
                 def.BoundsCenter = center.Value;
+            }
+
             if (size.HasValue)
+            {
                 def.BoundsSize = size.Value;
+            }
+
             def.BoundsAuto = !center.HasValue && !size.HasValue;
         }
 
@@ -205,7 +219,9 @@ public sealed class ContentPack
             def.ClearDonorVisual = Bool(visual, "clearDonor", true);
             def.FitInteraction = Bool(visual, "fitInteraction", true);
             foreach (JObject mesh in Children(visual, "meshes"))
+            {
                 def.Meshes.Add(ParseMesh(mesh));
+            }
         }
         def.SocketsDeclared = o["sockets"] != null;
         foreach (JObject socket in Children(o, "sockets"))
@@ -263,16 +279,28 @@ public sealed class ContentPack
             Position = Vec2(o["position"]) ?? new Vector2Int(0, 0),
         };
         if (!def.Hidden && o["position"] == null)
+        {
             pack.Problems.Add(def.Name + ": position must be [x, y], defaulting to 0,0");
+        }
+
         var requires = o["requires"] as JArray;
         if (requires != null)
+        {
             def.Requires.AddRange(requires.Select(t => t.ToObject<ushort>()));
+        }
+
         var parts = o["parts"] as JArray;
         if (parts != null)
+        {
             def.Parts.AddRange(parts.Select(t => (string)t));
+        }
+
         var features = o["features"] as JArray;
         if (features != null)
+        {
             def.Features.AddRange(features.Select(t => (string)t));
+        }
+
         ParseCost(o["cost"] as JObject, def.Cost);
         return def;
     }
@@ -280,24 +308,39 @@ public sealed class ContentPack
     private static void ParseCost(JObject o, Dictionary<uint, int> cost)
     {
         if (o == null)
+        {
             return;
+        }
+
         foreach (var pair in o)
+        {
             if (uint.TryParse(pair.Key, out uint item))
+            {
                 cost[item] = pair.Value.ToObject<int>();
+            }
+        }
     }
 
     private static IEnumerable<JObject> Children(JObject o, string name)
     {
         if (o == null)
+        {
             yield break;
+        }
+
         var array = o[name] as JArray;
         if (array == null)
+        {
             yield break;
+        }
+
         foreach (var token in array)
         {
             var child = token as JObject;
             if (child != null)
+            {
                 yield return child;
+            }
         }
     }
 
@@ -323,7 +366,10 @@ public sealed class ContentPack
     {
         var array = token as JArray;
         if (array == null || array.Count < 3)
+        {
             return null;
+        }
+
         return new Vector3((float)array[0], (float)array[1], (float)array[2]);
     }
 
@@ -331,7 +377,10 @@ public sealed class ContentPack
     {
         var array = token as JArray;
         if (array == null || array.Count < 2)
+        {
             return null;
+        }
+
         return new Vector2Int((int)array[0], (int)array[1]);
     }
 
@@ -339,7 +388,10 @@ public sealed class ContentPack
     {
         var array = token as JArray;
         if (array == null || array.Count < 3)
+        {
             return null;
+        }
+
         return new Color((float)array[0], (float)array[1], (float)array[2], array.Count > 3 ? (float)array[3] : 1f);
     }
 }
@@ -374,7 +426,10 @@ public static class ContentLog
     {
         string display = scope + "/" + key;
         if (!OnceKeys.Add(level + "|" + display))
+        {
             return false;
+        }
+
         Write(level, display, message);
         return true;
     }
@@ -382,7 +437,10 @@ public static class ContentLog
     private static void Write(ContentLogLevel level, string scope, string message)
     {
         if (level < ConsoleFloor)
+        {
             return;
+        }
+
         string text = scope + ": " + message;
         switch (level)
         {

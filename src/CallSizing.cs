@@ -68,22 +68,35 @@ internal static class CallSizing
     {
         var connections = ServiceLocator.GetService<ConnectionsServerTracker>();
         if (connections == null)
+        {
             return true; // Unknown authority is never permission.
+        }
+
         for (byte i = 0; i < 4; i++)
+        {
             if (connections.IsSocketPhysicallyOccupied(new EntityPartSocket(part.ShipId, part.PartId, i)))
+            {
                 return true;
+            }
+        }
+
         return false;
     }
 
     internal static bool Handle(TrackedShipServer ship, StatefulPart part, FunctionCallState state, string action)
     {
         if (!action.StartsWith(ActionPrefix, StringComparison.Ordinal))
+        {
             return false;
+        }
+
         string error = "";
         int count = 0;
         string[] fields = action.Substring(ActionPrefix.Length).Split(':');
         if (!Ready)
+        {
             error = "Call resizing is unavailable on this game build.";
+        }
         else if (
             fields.Length != 3
             || fields[0] != state.InstanceId.ToString("N")
@@ -93,11 +106,17 @@ internal static class CallSizing
             || count < 1
             || count > 3
         )
+        {
             error = "Size changed or invalid request. Reopen the menu.";
+        }
         else if (!string.IsNullOrEmpty(state.PendingFunctionId))
+        {
             error = "Finish or cancel the function change first.";
+        }
         else if (HasTerminalConnections(new PartContext(ship.Id, part.Id)))
+        {
             error = "Disconnect all terminals to change input count.";
+        }
         else if (count != state.InputCount && !Clearance(ship, part, count, out error)) { }
         if (error.Length > 0)
         {
@@ -124,7 +143,10 @@ internal static class CallSizing
         Bounds current = part.Settings.Bounds;
         Bounds requested = Variant(count).Bounds;
         if (current.Contains(requested.min) && current.Contains(requested.max))
+        {
             return true;
+        }
+
         if (!ship.IsInteriorColliderObjectCreated || ship.InteriorColliders == null)
         {
             error = "Wait for ship collision geometry to load before changing size.";
@@ -151,7 +173,10 @@ internal static class CallSizing
             && owned.GameObject != null
             && owned.GameObject.transform.IsChildOf(ship.InteriorColliders.transform)
         )
+        {
             ownInteractions = owned.GameObject.transform;
+        }
+
         BoxCollider supportBody = null;
         var solids = ship.InteriorColliders.GetComponentInChildren<ShipStatefulColliders>(true);
         if (
@@ -162,7 +187,10 @@ internal static class CallSizing
             && solid != null
             && solid.transform.IsChildOf(ship.InteriorColliders.transform)
         )
+        {
             supportBody = solid.GetComponent<BoxCollider>();
+        }
+
         Physics.SyncTransforms();
         for (int axis = 0; axis < 3; axis++)
         {
@@ -171,7 +199,10 @@ internal static class CallSizing
                 Vector3 end = max;
                 end[axis] = Mathf.Min(max[axis], oldMin[axis]);
                 if (!ClearRegion(ship, part, min, end, ownInteractions, supportBody, out error))
+                {
                     return false;
+                }
+
                 min[axis] = end[axis];
             }
             if (max[axis] > oldMax[axis])
@@ -179,11 +210,16 @@ internal static class CallSizing
                 Vector3 start = min;
                 start[axis] = Mathf.Max(min[axis], oldMax[axis]);
                 if (!ClearRegion(ship, part, start, max, ownInteractions, supportBody, out error))
+                {
                     return false;
+                }
+
                 max[axis] = start[axis];
             }
             if (min[axis] >= max[axis])
+            {
                 return true;
+            }
         }
         return true;
     }
@@ -204,7 +240,10 @@ internal static class CallSizing
         const float skin = .002f;
         Vector3 localHalf = (max - min) * .5f;
         if (localHalf.x <= skin || localHalf.y <= skin || localHalf.z <= skin)
+        {
             return true;
+        }
+
         var root = ship.InteriorColliders.transform;
         Vector3 center = root.TransformPoint(part.LocalPosition + part.LocalRotation * ((min + max) * .5f));
         Vector3 scale = root.lossyScale;
@@ -225,12 +264,20 @@ internal static class CallSizing
             var collider = Overlaps[i];
             Overlaps[i] = null;
             if (collider == null)
+            {
                 continue;
+            }
+
             if (ownInteractions != null && collider.transform.IsChildOf(ownInteractions))
+            {
                 continue;
+            }
+
             var identifier = collider.GetComponentInParent<ShipPartIdentifier>();
             if (identifier != null && identifier.Id == part.Id && collider.transform.IsChildOf(root))
+            {
                 continue;
+            }
             // Stock 100 mm hull colliders extend past their visible surface.
             // Saved mounts can already overlap that supporting plane by 10 mm.
             // Preserve only this exact existing bottom-face support contact:
@@ -256,23 +303,35 @@ internal static class CallSizing
                 )
                 && Vector3.Dot(direction, mountNormal) > .9999f
             )
+            {
                 continue;
+            }
+
             blocked = true;
         }
         if (blocked)
+        {
             error = "Not enough clear space to change this Call's size.";
+        }
+
         return !blocked;
     }
 
     internal static void Install()
     {
         if (_harmony != null)
+        {
             return;
+        }
+
         if (
             typeof(StatefulPart).Assembly.ManifestModule.ModuleVersionId
             != new Guid("ae9e219b-6548-45c9-b374-2af51262ea2c")
         )
+        {
             throw new NotSupportedException("Call sizing requires the inspected Ships.Interface build.");
+        }
+
         if (
             Settings == null
             || Settings.FieldType != typeof(PartSettings)
@@ -282,7 +341,10 @@ internal static class CallSizing
             || Touching == null
             || SignalMap == null
         )
+        {
             throw new MissingMemberException("Unsupported native Call geometry lifecycle.");
+        }
+
         _harmony = new HarmonyLib.Harmony("stellar.functions.call-sizing");
         try
         {
@@ -293,10 +355,13 @@ internal static class CallSizing
                 transpiler: new HarmonyMethod(typeof(CallSizing), nameof(CatalogueInventory))
             );
             foreach (string name in new[] { "AddStatefulPart", "AddStatefulPartWithoutInit" })
+            {
                 _harmony.Patch(
                     AccessTools.Method(typeof(ShipState), name, new[] { typeof(StatefulPart) }),
                     prefix: new HarmonyMethod(typeof(CallSizing), nameof(BeforeAdd))
                 );
+            }
+
             _harmony.Patch(
                 AccessTools.Method(
                     typeof(ShipState),
@@ -350,12 +415,15 @@ internal static class CallSizing
         _harmony?.UnpatchSelf();
         _harmony = null;
         for (int i = 1; i < 3; i++)
+        {
             if (Variants[i] != null)
             {
                 UnityEngine.Object.Destroy(Variants[i].part);
                 UnityEngine.Object.Destroy(Variants[i]);
                 Variants[i] = null;
             }
+        }
+
         Variants[3] = null;
         Array.Clear(Overlaps, 0, Overlaps.Length);
     }
@@ -363,16 +431,25 @@ internal static class CallSizing
     internal static void Configure(PartSettings original, GameObject prefab)
     {
         if (Variants[3] == original)
+        {
             return;
+        }
+
         if (Variants[3] != null)
+        {
             throw new NotSupportedException("Call content was rebuilt during use; restart before resizing.");
+        }
+
         var donors = Resources.FindObjectsOfTypeAll<PartSettings>();
         var combinator = donors.First(p => p.id == 45);
         var processor = donors.First(p => p.id == 54);
         var oldMesh = combinator.part.transform.Find("Visuals/MathGate").GetComponent<MeshFilter>().sharedMesh;
         Variants[3] = original;
         foreach (var screen in prefab.GetComponentsInChildren<Support.ScreenSurface>(true))
+        {
             FunctionScreens.ConfigureCallFace(screen, 3);
+        }
+
         for (int count = 1; count <= 2; count++)
         {
             var variant = UnityEngine.Object.Instantiate(original);
@@ -402,7 +479,10 @@ internal static class CallSizing
                 }
                 Vector3 position = socket.transform.localPosition;
                 if (socket.Id == 3)
+                {
                     position.x = count == 1 ? -.125f : .125f;
+                }
+
                 socket.transform.localPosition = position;
             }
             foreach (var screen in variant.part.GetComponentsInChildren<Support.ScreenSurface>(true))
@@ -443,15 +523,20 @@ internal static class CallSizing
             }
         }
         if (matches != 1)
+        {
             throw new NotSupportedException(
                 "Native part catalogue inventory changed; expected one inspected settings query."
             );
+        }
     }
 
     private static PartSettings[] FilterCatalogueSettings(PartSettings[] settings)
     {
         if (Variants[1] == null && Variants[2] == null)
+        {
             return settings;
+        }
+
         return settings.Where(p => !ReferenceEquals(p, Variants[1]) && !ReferenceEquals(p, Variants[2])).ToArray();
     }
 
@@ -463,16 +548,23 @@ internal static class CallSizing
     private static void Apply(StatefulPart part, FunctionCallState state)
     {
         if (part.Settings.id != 62005)
+        {
             return;
+        }
+
         var variant = Variant(state.InputCount);
         if (!ReferenceEquals(part.Settings, variant))
+        {
             Settings.SetValue(part, variant);
+        }
     }
 
     private static void BeforeAdd(StatefulPart __0)
     {
         if (__0.State is FunctionCallState state)
+        {
             Apply(__0, state);
+        }
     }
 
     private static void BeforeState(ShipState __instance, ushort id, IStatefulPartState state, out bool __state)
@@ -483,16 +575,23 @@ internal static class CallSizing
             || !__instance.TryGetPart(id, out var part)
             || part.Settings.id != 62005
         )
+        {
             return;
+        }
+
         __state = part.State is not FunctionCallState old || old.InputCount != next.InputCount;
         if (__state)
+        {
             Apply(part, next);
+        }
     }
 
     private static void AfterState(ShipState __instance, ushort id, bool __state)
     {
         if (!__state || !__instance.TryGetPart(id, out var part))
+        {
             return;
+        }
         // Native touching sockets are discovered on add, not state updates.
         RefreshTouching(ServiceLocator.GetService<ConnectionsServerTracker>(), __instance.Id, part);
         RefreshTouching(ServiceLocator.GetService<ConnectionsClientTracker>(), __instance.Id, part);
@@ -501,7 +600,10 @@ internal static class CallSizing
     private static void RefreshTouching(ConnectionsTracker tracker, uint ship, StatefulPart part)
     {
         if (tracker == null)
+        {
             return;
+        }
+
         if (
             TrackerShips.GetValue(tracker) is IShipsProvider provider
             && provider.TryGetShip(ship, out var owner)
@@ -525,27 +627,51 @@ internal static class CallSizing
     {
         var map = (ConnectionGroupMap)SignalMap.GetValue(tracker);
         if (map == null || part.Settings?.part == null)
+        {
             return;
+        }
+
         var ids = new HashSet<byte>();
         foreach (var settings in Variants)
+        {
             if (settings?.part != null)
+            {
                 foreach (var socket in settings.part.GetComponentsInChildren<SocketObject>(true))
+                {
                     if (socket != null)
+                    {
                         ids.Add(socket.Id);
+                    }
+                }
+            }
+        }
+
         foreach (var socket in part.Settings.part.GetComponentsInChildren<SocketObject>(true))
+        {
             if (socket != null)
+            {
                 ids.Add(socket.Id);
+            }
+        }
+
         foreach (byte id in ids)
         {
             var socket = new EntityPartSocket(ship, part.Id, id);
             if (!map.TryGetSocketConnections(socket, out var connections))
+            {
                 continue;
+            }
+
             foreach (var connection in connections.ToArray())
+            {
                 if (
                     connection.Type == SocketConnectionType.Touching
                     || connection.Type == SocketConnectionType.RelayedByPart
                 )
+                {
                     map.OnConnectionDelete(connection);
+                }
+            }
         }
     }
 
@@ -557,9 +683,15 @@ internal static class CallSizing
     private static bool BeforeVisualState(ShipPartVisuals __instance, StatefulPartStateChangeEvent change)
     {
         if (!Changed(change))
+        {
             return true;
+        }
+
         if (__instance.TryGetFloatingPartVisual(change.PartId, out var previous))
+        {
             previous.GameObject.SetActive(false);
+        }
+
         __instance.RemoveStatefulPart(change.Part);
         __instance.AddStatefulPart(change.Part);
         __instance.InitializeStatefulPart(change.Part);
@@ -569,7 +701,10 @@ internal static class CallSizing
     private static void AfterColliderState(ShipStatefulColliders __instance, StatefulPartStateChangeEvent change)
     {
         if (!Changed(change))
+        {
             return;
+        }
+
         var parts = (Dictionary<ushort, GameObject>)ColliderParts.GetValue(__instance);
         if (parts.TryGetValue(change.PartId, out var item) && item.TryGetComponent<BoxCollider>(out var box))
         {
@@ -582,10 +717,16 @@ internal static class CallSizing
     private static bool BeforeInteractionState(ShipInteractionColliders __instance, StatefulPartStateChangeEvent change)
     {
         if (!Changed(change))
+        {
             return true;
+        }
+
         var parts = (Dictionary<ushort, IShipPartInteractions>)InteractionParts.GetValue(__instance);
         if (parts.TryGetValue(change.PartId, out var previous))
+        {
             previous.GameObject.SetActive(false);
+        }
+
         __instance.RemoveStatefulPart(change.Part);
         __instance.AddStatefulPart(change.Part);
         __instance.InitializeStatefulPart(change.Part);
@@ -595,7 +736,10 @@ internal static class CallSizing
     private static bool SparseSocketVisuals(GameObject part, Transform parent, ref GameObject __result)
     {
         if (part.GetComponent<CallVariantPrefab>() == null)
+        {
             return true;
+        }
+
         var visual = part.GetComponentInChildren<IShipPartVisual>().GameObject;
         var result = UnityEngine.Object.Instantiate(visual, parent);
         var tracker = result.AddComponent<PartSocketsTracker>();

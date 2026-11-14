@@ -101,10 +101,16 @@ internal static class CallFaceTextChecks
         }
         var cached = new MeasuredScreenLine(wide, 2f, 1f, Count);
         for (int i = 0; i < wide.Length + 3; i++)
+        {
             cached.Present(1f, Count);
+        }
+
         int before = measured;
         for (int i = 0; i < wide.Length + 3; i++)
+        {
             cached.Present(1f, Count);
+        }
+
         check(measured == before, "previously displayed offsets reuse measured windows on wrap");
     }
 
@@ -113,12 +119,15 @@ internal static class CallFaceTextChecks
         float width = 0f;
         var elements = StringInfo.GetTextElementEnumerator(text);
         while (elements.MoveNext())
+        {
             width += elements.GetTextElement()[0] switch
             {
                 'W' => 2f,
                 'i' => .25f,
                 _ => 1f,
             };
+        }
+
         return width;
     }
 }

@@ -36,7 +36,10 @@ public sealed class MenuLayout
     {
         var layout = new MenuLayout { Menu = menu };
         if (menu == null)
+        {
             return layout;
+        }
+
         var grids = menu.GetComponentsInChildren<InventoryGrid>(true);
         layout.Wrapper = grids.Length != 0 ? grids[0].transform : menu.transform;
         layout.Content = layout.Wrapper.childCount > 0 ? layout.Wrapper.GetChild(0) : layout.Wrapper;
@@ -69,13 +72,24 @@ public sealed class MenuLayout
     public static bool Write(Component target, string text)
     {
         if (target == null)
+        {
             return false;
+        }
+
         foreach (Component component in target.GetComponents<Component>())
+        {
             if (component != null && component.GetType().Name == "LocalizeStringEvent")
+            {
                 DestroyImmediate(component);
+            }
+        }
+
         var property = target.GetType().GetProperty("text", typeof(string));
         if (property == null || !property.CanWrite)
+        {
             return false;
+        }
+
         property.SetValue(target, text, null);
         return true;
     }
@@ -83,8 +97,13 @@ public sealed class MenuLayout
     public static bool IsText(Component component)
     {
         for (Type type = component?.GetType(); type != null; type = type.BaseType)
+        {
             if (type.Name == "TMP_Text" || type.Name == "TextMeshProUGUI" || type.Name == "Text")
+            {
                 return true;
+            }
+        }
+
         return false;
     }
 
@@ -118,7 +137,10 @@ public static class ContentConfigMenu
     private static bool Append(GameObject menu, ContentPart part, PartBehaviour behaviour, bool replace)
     {
         if (menu == null || part.Def == null || behaviour == null)
+        {
             return false;
+        }
+
         try
         {
             MenuLayout layout = MenuLayout.Resolve(menu);
@@ -145,7 +167,10 @@ public static class ContentConfigMenu
             _side = side;
             string titleText = behaviour.ConfigTitle(part) ?? part.Def.Label;
             if (title != null)
+            {
                 MenuLayout.Write(title, titleText);
+            }
+
             Rebuild();
             ContentLog.Info("config menu", "port panel opened beside " + part.Label + "'s menu");
             return true;
@@ -176,7 +201,9 @@ public static class ContentConfigMenu
                 node.GetComponent<Image>() != null
                 && node.Cast<Transform>().Any(child => child.GetComponents<Component>().Any(MenuLayout.IsText))
             )
+            {
                 return node;
+            }
         }
         return layout.Panel;
     }
@@ -253,7 +280,10 @@ public static class ContentConfigMenu
         {
             grid = existing.transform;
             foreach (Transform child in grid.Cast<Transform>().ToList())
+            {
                 DestroyImmediate(child.gameObject);
+            }
+
             DestroyImmediate(existing);
         }
         else
@@ -271,8 +301,13 @@ public static class ContentConfigMenu
             rect.offsetMax = new Vector2(-34f, -92f);
         }
         foreach (Component text in texts)
+        {
             if (text != title && text != null && !text.transform.IsChildOf(grid))
+            {
                 text.gameObject.SetActive(false);
+            }
+        }
+
         var layoutGroup = grid.gameObject.AddComponent<VerticalLayoutGroup>();
         layoutGroup.spacing = 10f;
         layoutGroup.padding = new RectOffset(6, 6, 6, 6);
@@ -328,8 +363,13 @@ public static class ContentConfigMenu
             .Distinct()
             .ToList();
         foreach (GameObject host in slotHosts)
+        {
             if (host != null)
+            {
                 DestroyImmediate(host);
+            }
+        }
+
         var strippable = clone
             .GetComponentsInChildren<Component>(true)
             .Where(c =>
@@ -342,7 +382,10 @@ public static class ContentConfigMenu
             foreach (Component component in strippable)
             {
                 if (component == null)
+                {
                     continue;
+                }
+
                 try
                 {
                     DestroyImmediate(component);
@@ -355,19 +398,25 @@ public static class ContentConfigMenu
             strippable = retry;
         }
         foreach (Component component in strippable)
+        {
             if (component != null)
+            {
                 ContentLog.Once(
                     "config menu",
                     "keep" + component.GetType().Name,
                     ContentLogLevel.Warn,
                     "could not strip " + component.GetType().Name + " from the port panel clone"
                 );
+            }
+        }
     }
 
     private static void DestroyImmediate(UnityEngine.Object obj)
     {
         if (obj != null)
+        {
             UnityEngine.Object.DestroyImmediate(obj);
+        }
     }
 
     // Harmony patch target kept for FunctionEditor, which owns Functions row
@@ -380,7 +429,9 @@ public static class ContentConfigMenu
     private static void Destroy(UnityEngine.Object obj)
     {
         if (obj != null)
+        {
             UnityEngine.Object.Destroy(obj);
+        }
     }
 }
 
@@ -394,7 +445,10 @@ public static class ContentMenus
     public static void Install()
     {
         if (_patched)
+        {
             return;
+        }
+
         _patched = true;
         var method = AccessTools.Method(typeof(StorageMenuActivator), "ShowMenu", Type.EmptyTypes, null);
         if (method == null)
@@ -417,7 +471,10 @@ public static class ContentMenus
     public static void AfterShowMenu(StorageMenuActivator __instance)
     {
         if (_currentMenu == null)
+        {
             return;
+        }
+
         var menu = _currentMenu.GetValue(__instance) as GameObject;
         if (menu == null)
         {
@@ -443,21 +500,32 @@ public static class ContentMenus
         }
         ContentLog.Info("menus", def.Label + " opened, menu mode " + def.Menu);
         if (!def.Attached)
+        {
             Retitle(menu, def.Label);
+        }
+
         bool panel = string.Equals(def.Menu, "panel", StringComparison.OrdinalIgnoreCase);
         if (panel || string.Equals(def.Menu, "config", StringComparison.OrdinalIgnoreCase))
+        {
             OpenPanel(menu, def, panel);
+        }
     }
 
     private static void OpenPanel(GameObject menu, ContentPartDef def, bool replace)
     {
         PartBehaviour behaviour = ContentRuntime.Of(def.Id);
         if (behaviour == null)
+        {
             return;
+        }
+
         var players = Support.NativeServices.CachedService<IPlayersProviderClient>();
         PlayerState state = default;
         if (players == null || !players.TryGetLocalPlayerState(out state))
+        {
             return;
+        }
+
         var serverShips = Support.NativeServices.CachedService<ShipsServerTracker>();
         TrackedShipServer serverShip = serverShips == null ? null : serverShips.GetShip(state.EntityId);
         if (
@@ -550,7 +618,10 @@ public static class ContentMenus
     public static bool Retitle(GameObject menu, string title)
     {
         if (menu == null || string.IsNullOrEmpty(title))
+        {
             return false;
+        }
+
         MenuLayout layout = MenuLayout.Resolve(menu);
         if (layout.Title != null && layout.SetTitle(title))
         {

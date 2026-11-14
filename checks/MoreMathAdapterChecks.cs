@@ -127,54 +127,52 @@ internal static class MoreMathAdapterChecks
                 { 2, 3 },
             };
             for (int kind = 0; kind < 2; kind++)
-            for (int code = 10; code <= (kind == 0 ? 30 : 17); code++)
             {
-                bool binary = kind == 0;
-                ushort id = (ushort)(100 + kind * 100 + code);
-                Add(
-                    id,
-                    settings[(ushort)(binary ? 45 : 54)],
-                    binary
-                        ? (IStatefulPartState)new MathGateState { Operation = (MathGateOperation)code }
-                        : new SignalProcessorState { Operation = (SignalProcessorOperation)code }
-                );
-                Connect(1, id, 0);
-                if (binary)
-                    Connect(2, id, 1);
-                object operation = Activator.CreateInstance(operationType);
-                AccessTools
-                    .Field(operationType, "Operation")
-                    .SetValue(
-                        operation,
-                        Enum.Parse(AccessTools.Field(operationType, "Operation").FieldType, "EvaluatePart")
+                for (int code = 10; code <= (kind == 0 ? 30 : 17); code++)
+                {
+                    bool binary = kind == 0;
+                    ushort id = (ushort)(100 + kind * 100 + code);
+                    Add(
+                        id,
+                        settings[(ushort)(binary ? 45 : 54)],
+                        binary
+                            ? (IStatefulPartState)new MathGateState { Operation = (MathGateOperation)code }
+                            : new SignalProcessorState { Operation = (SignalProcessorOperation)code }
                     );
-                AccessTools.Field(operationType, "Part").SetValue(operation, new PartContext(shipId, id));
-                operations.Clear();
-                operations.Add(operation);
-                Guid aId = Guid.NewGuid(),
-                    bId = Guid.NewGuid();
-                Array parameters = Array.CreateInstance(parameter, binary ? 2 : 1);
-                object Make(Type type, params object[] args) =>
-                    Activator.CreateInstance(type, BindingFlags.NonPublic | BindingFlags.Instance, null, args, null);
-                parameters.SetValue(Make(parameter, aId, "a", 1, (double?)0), 0);
-                if (binary)
-                    parameters.SetValue(Make(parameter, bId, "b", 2, (double?)0), 1);
-                Array nodes = Array.CreateInstance(node, binary ? 3 : 2);
-                nodes.SetValue(
-                    Make(
-                        node,
-                        Guid.NewGuid(),
-                        Enum.Parse(op, "Parameter"),
-                        null,
-                        null,
-                        0d,
-                        aId,
-                        Array.Empty<Guid>(),
-                        (byte)0
-                    ),
-                    0
-                );
-                if (binary)
+                    Connect(1, id, 0);
+                    if (binary)
+                    {
+                        Connect(2, id, 1);
+                    }
+
+                    object operation = Activator.CreateInstance(operationType);
+                    AccessTools
+                        .Field(operationType, "Operation")
+                        .SetValue(
+                            operation,
+                            Enum.Parse(AccessTools.Field(operationType, "Operation").FieldType, "EvaluatePart")
+                        );
+                    AccessTools.Field(operationType, "Part").SetValue(operation, new PartContext(shipId, id));
+                    operations.Clear();
+                    operations.Add(operation);
+                    Guid aId = Guid.NewGuid(),
+                        bId = Guid.NewGuid();
+                    Array parameters = Array.CreateInstance(parameter, binary ? 2 : 1);
+                    object Make(Type type, params object[] args) =>
+                        Activator.CreateInstance(
+                            type,
+                            BindingFlags.NonPublic | BindingFlags.Instance,
+                            null,
+                            args,
+                            null
+                        );
+                    parameters.SetValue(Make(parameter, aId, "a", 1, (double?)0), 0);
+                    if (binary)
+                    {
+                        parameters.SetValue(Make(parameter, bId, "b", 2, (double?)0), 1);
+                    }
+
+                    Array nodes = Array.CreateInstance(node, binary ? 3 : 2);
                     nodes.SetValue(
                         Make(
                             node,
@@ -183,75 +181,115 @@ internal static class MoreMathAdapterChecks
                             null,
                             null,
                             0d,
-                            bId,
+                            aId,
                             Array.Empty<Guid>(),
                             (byte)0
                         ),
-                        1
+                        0
                     );
-                string name = (string)
-                    AccessTools.Method(helper, binary ? "BinaryName" : "UnaryName").Invoke(null, new object[] { code });
-                nodes.SetValue(
-                    Make(
-                        node,
-                        Guid.NewGuid(),
-                        Enum.Parse(op, binary ? "MoreMathBinary" : "MoreMathUnary"),
-                        binary ? new[] { 0, 1 } : new[] { 0 },
-                        name,
-                        (double)code,
-                        Guid.Empty,
-                        Array.Empty<Guid>(),
-                        (byte)0
-                    ),
-                    binary ? 2 : 1
-                );
-                object body = Make(graph, Guid.NewGuid(), "Native parity", parameters, nodes, binary ? 2 : 1, "parity");
-                var history = new Dictionary<string, double>();
-                for (int sample = 0; sample < samples.GetLength(0); sample++)
-                {
-                    double a = samples[sample, 0],
-                        b = samples[sample, 1];
-                    ship.UpdatePartState(1, new ConstantState { ConstantValue = a });
-                    ship.UpdatePartState(2, new ConstantState { ConstantValue = b });
-                    foreach (var group in connections.SignalConnectionGroups.ConnectionGroups.Values.ToArray())
-                        connections.UpdateSignalGroupValue(group.Id);
-                    prefix.Invoke(null, new object[] { null, dt, operations, ships, connections });
-                    ship.TryGetStatefulPart(id, out var physical);
-                    double native = binary
-                        ? ((MathGateState)physical.State).Output
-                        : ((SignalProcessorState)physical.State).Output;
-                    var args = new Dictionary<Guid, double> { { aId, a } };
                     if (binary)
-                        args[bId] = b;
-                    object result = evaluate.Invoke(null, new object[] { body, null, args, history, null, (double)dt });
-                    string error = (string)AccessTools.Field(result.GetType(), "Error").GetValue(result);
-                    double actual = (double)AccessTools.Field(result.GetType(), "Output").GetValue(result);
-                    var proposed =
-                        (Dictionary<string, double>)
-                            AccessTools.Field(result.GetType(), "ProposedState").GetValue(result);
-                    if (double.IsNaN(native) || double.IsInfinity(native))
-                        check(
-                            error != null && actual == 0 && proposed == null,
-                            name + " nonfinite native result fails closed without state commit"
-                        );
-                    else
                     {
-                        check(
-                            error == null && Math.Abs(actual - native) <= 1e-9 * Math.Max(1, Math.Abs(native)),
-                            name
-                                + " native/evaluator parity at step "
-                                + sample
-                                + " (native="
-                                + native
-                                + ", virtual="
-                                + actual
-                                + ", error="
-                                + error
-                                + ")"
+                        nodes.SetValue(
+                            Make(
+                                node,
+                                Guid.NewGuid(),
+                                Enum.Parse(op, "Parameter"),
+                                null,
+                                null,
+                                0d,
+                                bId,
+                                Array.Empty<Guid>(),
+                                (byte)0
+                            ),
+                            1
                         );
-                        history = JsonConvert.DeserializeObject<Dictionary<string, double>>(
-                            JsonConvert.SerializeObject(proposed)
+                    }
+
+                    string name = (string)
+                        AccessTools
+                            .Method(helper, binary ? "BinaryName" : "UnaryName")
+                            .Invoke(null, new object[] { code });
+                    nodes.SetValue(
+                        Make(
+                            node,
+                            Guid.NewGuid(),
+                            Enum.Parse(op, binary ? "MoreMathBinary" : "MoreMathUnary"),
+                            binary ? new[] { 0, 1 } : new[] { 0 },
+                            name,
+                            (double)code,
+                            Guid.Empty,
+                            Array.Empty<Guid>(),
+                            (byte)0
+                        ),
+                        binary ? 2 : 1
+                    );
+                    object body = Make(
+                        graph,
+                        Guid.NewGuid(),
+                        "Native parity",
+                        parameters,
+                        nodes,
+                        binary ? 2 : 1,
+                        "parity"
+                    );
+                    var history = new Dictionary<string, double>();
+                    for (int sample = 0; sample < samples.GetLength(0); sample++)
+                    {
+                        double a = samples[sample, 0],
+                            b = samples[sample, 1];
+                        ship.UpdatePartState(1, new ConstantState { ConstantValue = a });
+                        ship.UpdatePartState(2, new ConstantState { ConstantValue = b });
+                        foreach (var group in connections.SignalConnectionGroups.ConnectionGroups.Values.ToArray())
+                        {
+                            connections.UpdateSignalGroupValue(group.Id);
+                        }
+
+                        prefix.Invoke(null, new object[] { null, dt, operations, ships, connections });
+                        ship.TryGetStatefulPart(id, out var physical);
+                        double native = binary
+                            ? ((MathGateState)physical.State).Output
+                            : ((SignalProcessorState)physical.State).Output;
+                        var args = new Dictionary<Guid, double> { { aId, a } };
+                        if (binary)
+                        {
+                            args[bId] = b;
+                        }
+
+                        object result = evaluate.Invoke(
+                            null,
+                            new object[] { body, null, args, history, null, (double)dt }
                         );
+                        string error = (string)AccessTools.Field(result.GetType(), "Error").GetValue(result);
+                        double actual = (double)AccessTools.Field(result.GetType(), "Output").GetValue(result);
+                        var proposed =
+                            (Dictionary<string, double>)
+                                AccessTools.Field(result.GetType(), "ProposedState").GetValue(result);
+                        if (double.IsNaN(native) || double.IsInfinity(native))
+                        {
+                            check(
+                                error != null && actual == 0 && proposed == null,
+                                name + " nonfinite native result fails closed without state commit"
+                            );
+                        }
+                        else
+                        {
+                            check(
+                                error == null && Math.Abs(actual - native) <= 1e-9 * Math.Max(1, Math.Abs(native)),
+                                name
+                                    + " native/evaluator parity at step "
+                                    + sample
+                                    + " (native="
+                                    + native
+                                    + ", virtual="
+                                    + actual
+                                    + ", error="
+                                    + error
+                                    + ")"
+                            );
+                            history = JsonConvert.DeserializeObject<Dictionary<string, double>>(
+                                JsonConvert.SerializeObject(proposed)
+                            );
+                        }
                     }
                 }
             }
@@ -277,16 +315,25 @@ internal static class MoreMathAdapterChecks
                 operations.Add(item);
             }
             foreach (var group in connections.SignalConnectionGroups.ConnectionGroups.Values.ToArray())
+            {
                 connections.UpdateSignalGroupValue(group.Id);
+            }
+
             var invokeArgs = new object[] { null, dt, operations, ships, connections };
             double Sample(bool enabled)
             {
                 AccessTools.Method(adapter, enabled ? "Install" : "Uninstall").Invoke(null, null);
                 for (int warm = 0; warm < 32; warm++)
+                {
                     prefix.Invoke(null, invokeArgs);
+                }
+
                 long started = Stopwatch.GetTimestamp();
                 for (int repeat = 0; repeat < 200; repeat++)
+                {
                     prefix.Invoke(null, invokeArgs);
+                }
+
                 return (Stopwatch.GetTimestamp() - started) * 1000d / Stopwatch.Frequency / 200;
             }
             var baseline = new double[3];
@@ -352,7 +399,10 @@ internal static class MoreMathAdapterChecks
         finally
         {
             foreach (var edge in edges)
+            {
                 connections.SignalConnectionGroups.OnConnectionDelete(edge);
+            }
+
             UnityEngine.Object.DestroyImmediate(service);
         }
     }

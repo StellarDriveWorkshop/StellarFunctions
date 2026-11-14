@@ -18,7 +18,10 @@ public static class SpecRules
     public static Readiness Evaluate(int built, int failed, int total)
     {
         if (total <= 0 || built + failed < total)
+        {
             return Readiness.Awaiting;
+        }
+
         return failed > 0 ? Readiness.Degraded : Readiness.Ready;
     }
 }

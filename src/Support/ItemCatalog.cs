@@ -27,7 +27,9 @@ public static class ItemCatalog
             }
             catch { }
             if (type != null)
+            {
                 return type;
+            }
         }
         return Type.GetType(fullName);
     }
@@ -38,7 +40,10 @@ public static class ItemCatalog
     {
         Type settingsType = ItemSettingsType;
         if (settingsType == null || !typeof(UnityEngine.Object).IsAssignableFrom(settingsType))
+        {
             return null;
+        }
+
         if (_byId == null)
         {
             _byId = new Dictionary<uint, object>();
@@ -50,7 +55,9 @@ public static class ItemCatalog
                     : idMember is FieldInfo field ? field.GetValue(candidate)
                     : null;
                 if (value is uint uid && candidate != null && !_byId.ContainsKey(uid))
+                {
                     _byId[uid] = candidate;
+                }
             }
         }
         return _byId.TryGetValue(id, out var found) ? found : null;

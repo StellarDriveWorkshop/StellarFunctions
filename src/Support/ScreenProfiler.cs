@@ -49,7 +49,9 @@ internal static class ScreenProfiler
                     || string.Equals(env, "yes", StringComparison.OrdinalIgnoreCase)
                 )
             )
+            {
                 return true;
+            }
         }
         catch { }
         try
@@ -69,14 +71,18 @@ internal static class ScreenProfiler
     {
         _surfaces++;
         if (measured)
+        {
             _measuredSurfaces++;
+        }
     }
 
     internal static void SurfaceDestroyed(bool measured)
     {
         _surfaces--;
         if (measured)
+        {
             _measuredSurfaces--;
+        }
     }
 
     // Returns a timestamp only while a capture is active; callers must pass
@@ -86,7 +92,10 @@ internal static class ScreenProfiler
     internal static void End(ScreenProfileBucket bucket, long start)
     {
         if (start == 0L || _stats == null)
+        {
             return;
+        }
+
         _stats.Record(bucket, Stopwatch.GetTimestamp() - start);
     }
 
@@ -99,7 +108,10 @@ internal static class ScreenProfiler
     internal static void Tick()
     {
         if (!_enabled)
+        {
             return;
+        }
+
         if (_stats != null)
         {
             _stats.Frame();
@@ -113,9 +125,13 @@ internal static class ScreenProfiler
         if (keyboard != null && keyboard.f7Key.wasPressedThisFrame)
         {
             if (_stats == null)
+            {
                 Start();
+            }
             else
+            {
                 Finish();
+            }
         }
     }
 
@@ -135,7 +151,9 @@ internal static class ScreenProfiler
         var stats = _stats;
         _stats = null;
         if (stats == null)
+        {
             return;
+        }
         // Report generation and file I/O must never throw into OnUpdate: a
         // managed fault here would repeat every frame and could mask the real
         // failure. Everything below is guarded; writes go through a temp file
@@ -180,7 +198,10 @@ internal static class ScreenProfiler
         string temp = path + ".tmp";
         File.WriteAllText(temp, content, Encoding.UTF8);
         if (File.Exists(path))
+        {
             File.Delete(path);
+        }
+
         File.Move(temp, path);
     }
 
@@ -195,7 +216,10 @@ internal static class ScreenProfiler
     private static string BuildHash()
     {
         if (_buildHash != null)
+        {
             return _buildHash;
+        }
+
         try
         {
             string path = typeof(ScreenProfiler).Assembly.Location;
@@ -203,7 +227,10 @@ internal static class ScreenProfiler
             byte[] hash = sha.ComputeHash(File.ReadAllBytes(path));
             var hex = new StringBuilder(hash.Length * 2);
             foreach (byte b in hash)
+            {
                 hex.Append(b.ToString("x2", CultureInfo.InvariantCulture));
+            }
+
             _buildHash = hex.ToString();
         }
         catch

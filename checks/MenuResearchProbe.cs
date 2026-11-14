@@ -60,7 +60,10 @@ public sealed class MenuResearchProbe : MelonMod
     public override void OnUpdate()
     {
         if (_done || Time.realtimeSinceStartup < 6)
+        {
             return;
+        }
+
         try
         {
             if (_scene == null)
@@ -72,19 +75,28 @@ public sealed class MenuResearchProbe : MelonMod
             if (_scene.progress < .9f)
             {
                 if (Time.realtimeSinceStartup > 40)
+                {
                     throw new TimeoutException("Assets unavailable");
+                }
+
                 return;
             }
             // The research canvas spawns asynchronously after the additive
             // scene reports ready; give it a bounded window before judging.
             if (_uiDeadline < 0f)
+            {
                 _uiDeadline = Time.realtimeSinceStartup + 20f;
+            }
+
             if (
                 Time.realtimeSinceStartup < _uiDeadline
                 && !Resources.FindObjectsOfTypeAll<UI.Research.ResearchCanvas>().Any()
                 && !Resources.FindObjectsOfTypeAll<UI.Research.ResearchInfo>().Any()
             )
+            {
                 return;
+            }
+
             _done = true;
             Run();
             File.WriteAllText(Path.Combine(_output, "success.txt"), "PASS " + _checks + " native research/menu checks");
@@ -101,7 +113,10 @@ public sealed class MenuResearchProbe : MelonMod
     private void Check(bool ok, string message)
     {
         if (!ok)
+        {
             throw new Exception(message);
+        }
+
         _checks++;
         File.AppendAllText(Path.Combine(_output, "assertions.txt"), "PASS " + message + Environment.NewLine);
     }
@@ -459,7 +474,10 @@ public sealed class MenuResearchProbe : MelonMod
         StellarFunctions.TransmitterRuntimeChecks.Run(Check);
         TransmitterAssetChecks.Run(_output);
         if (File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ui-redesign.txt")))
+        {
             StellarFunctions.UiRedesignChecks.Run(_output, Check);
+        }
+
         var parts = Ids.Select(id => StellarFunctions.Support.Registration.Get(id)).ToArray();
         Check(parts.All(p => p != null), "all four real function settings exist");
         var list = Resources.FindObjectsOfTypeAll<ResearchSettingsList>().First();
@@ -538,8 +556,10 @@ public sealed class MenuResearchProbe : MelonMod
             // The info panel may only exist inside the research canvas prefab.
             var canvas = Resources.FindObjectsOfTypeAll<UI.Research.ResearchCanvas>().FirstOrDefault(c => c != null);
             if (canvas != null)
+            {
                 infoSource = (UI.Research.ResearchInfo)
                     AccessTools.Field(typeof(UI.Research.ResearchCanvas), "info").GetValue(canvas);
+            }
         }
         if (infoSource == null)
         {
@@ -571,7 +591,10 @@ public sealed class MenuResearchProbe : MelonMod
         var info = UnityEngine.Object.Instantiate(infoSource, infoOwner.transform);
         AccessTools.Field(typeof(UI.Research.ResearchInfo), "_researchProvider").SetValue(info, proxy);
         if (guideProvider != null)
+        {
             AccessTools.Field(typeof(UI.Research.ResearchInfo), "_guideEntriesProvider").SetValue(info, guideProvider);
+        }
+
         HarmonyInstance.Patch(
             AccessTools.Method(typeof(ResearchClientProxy), "CanResearch"),
             prefix: new HarmonyMethod(typeof(MenuResearchProbe), nameof(AllowResearch))
@@ -825,7 +848,9 @@ public sealed class MenuResearchProbe : MelonMod
             try
             {
                 if (controlId != 0)
+                {
                     control = realCache.GetLargeThumbnail(controlId);
+                }
             }
             catch (Exception error)
             {
@@ -896,7 +921,10 @@ public sealed class MenuResearchProbe : MelonMod
         menuOwner.SetActive(false);
         var menu = UnityEngine.Object.Instantiate(nativeMenu, menuOwner.transform);
         for (int i = 0; i < 3; i++)
+        {
             StellarFunctions.Support.MenuCatalog.BeforeStart(menu);
+        }
+
         var tabs = (BuildMenuTabConfig[])AccessTools.Field(typeof(BuildMenu), "tabsConfig").GetValue(menu);
         int tab = Array.FindIndex(tabs, t => t.rows.Any(r => r.parts.Any(p => p != null && Ids.Contains(p.id))));
         Check(tab >= 0, "native menu config contains function parts");
@@ -932,7 +960,10 @@ public sealed class MenuResearchProbe : MelonMod
         StellarFunctions.Support.MenuCatalog.Restore();
         Check(FunctionRows() == 0, "ownership-aware restore removes every function entry");
         for (int i = 0; i < 3; i++)
+        {
             StellarFunctions.Support.MenuCatalog.BeforeStart(menu);
+        }
+
         Check(FunctionRows() == Ids.Length, "menu re-registration after restore rebuilds all four entries once");
     }
 
@@ -954,7 +985,10 @@ public sealed class MenuResearchProbe : MelonMod
     private static int DistinctColors(Texture2D texture)
     {
         if (texture == null)
+        {
             return 0;
+        }
+
         return new HashSet<uint>(texture.GetPixels32().Select(p => (uint)(p.r | (p.g << 8) | (p.b << 16)))).Count;
     }
 
@@ -963,7 +997,10 @@ public sealed class MenuResearchProbe : MelonMod
     private static bool RecordThumbnail(ushort partId)
     {
         if (RecordTarget != null)
+        {
             RecordTarget.Add(partId);
+        }
+
         return false;
     }
 
@@ -988,14 +1025,22 @@ public sealed class MenuResearchProbe : MelonMod
                     .GetType()
                     .GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             )
+            {
                 if (field.FieldType.IsPrimitive || field.FieldType.IsEnum || field.FieldType == typeof(Vector3))
+                {
                     lines.Add("SETTING " + field.Name + " = " + field.GetValue(settings));
+                }
+            }
+
             var root = settings.part.transform;
             foreach (var t in root.GetComponentsInChildren<Transform>(true))
             {
                 string path = t == root ? "." : t.name;
                 for (var p = t.parent; p != null && p != root; p = p.parent)
+                {
                     path = p.name + "/" + path;
+                }
+
                 lines.Add(
                     path
                         + " p="
@@ -1008,23 +1053,35 @@ public sealed class MenuResearchProbe : MelonMod
                 foreach (var component in t.GetComponents<Component>())
                 {
                     if (component == null)
+                    {
                         continue;
+                    }
+
                     lines.Add("  " + component.GetType().FullName);
                     if (component is MeshFilter mesh && mesh.sharedMesh != null)
+                    {
                         lines.Add("  MESH " + mesh.sharedMesh.name + " " + mesh.sharedMesh.bounds.ToString("F5"));
+                    }
+
                     if (component.GetType().Name.Contains("Socket") || component.GetType().Name.Contains("Display"))
+                    {
                         foreach (
                             var f in component
                                 .GetType()
                                 .GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                         )
+                        {
                             if (
                                 f.FieldType.IsPrimitive
                                 || f.FieldType.IsEnum
                                 || f.FieldType == typeof(Vector3)
                                 || typeof(UnityEngine.Object).IsAssignableFrom(f.FieldType)
                             )
+                            {
                                 lines.Add("    " + f.Name + "=" + f.GetValue(component));
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1033,24 +1090,33 @@ public sealed class MenuResearchProbe : MelonMod
                 .FindObjectsOfTypeAll<MonoBehaviour>()
                 .Where(c => c != null && c.GetType().Name == "GenericPartOpenableMenuActivator")
         )
-        foreach (
-            var field in activator
-                .GetType()
-                .GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-        )
-            if (field.GetValue(activator) is GameObject prefab)
-                foreach (var t in prefab.GetComponentsInChildren<Transform>(true))
-                    lines.Add(
-                        "MENU "
-                            + field.Name
-                            + " "
-                            + t.name
-                            + " comps="
-                            + string.Join(
-                                ",",
-                                t.GetComponents<Component>().Where(c => c != null).Select(c => c.GetType().FullName)
-                            )
-                    );
+        {
+            foreach (
+                var field in activator
+                    .GetType()
+                    .GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+            )
+            {
+                if (field.GetValue(activator) is GameObject prefab)
+                {
+                    foreach (var t in prefab.GetComponentsInChildren<Transform>(true))
+                    {
+                        lines.Add(
+                            "MENU "
+                                + field.Name
+                                + " "
+                                + t.name
+                                + " comps="
+                                + string.Join(
+                                    ",",
+                                    t.GetComponents<Component>().Where(c => c != null).Select(c => c.GetType().FullName)
+                                )
+                        );
+                    }
+                }
+            }
+        }
+
         File.WriteAllLines(Path.Combine(_output, "native-donor-layout.txt"), lines);
     }
 

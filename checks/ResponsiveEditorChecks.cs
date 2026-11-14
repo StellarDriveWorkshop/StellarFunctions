@@ -28,12 +28,17 @@ internal static class ResponsiveEditorChecks
         var root = (GameObject)Editor.GetField("_root", PrivateStatic).GetValue(null);
         check(root != null, "responsive editor fixture uses the open native SDK menu");
         if (root == null)
+        {
             return;
+        }
 
         var canvas = ContentConfigMenu.Root.GetComponentInParent<Canvas>();
         check(canvas != null, "responsive editor has a native menu canvas");
         if (canvas == null)
+        {
             return;
+        }
+
         var scaler = canvas.GetComponent<CanvasScaler>();
         Vector2 oldReference = scaler != null ? scaler.referenceResolution : Vector2.zero;
         float oldMatch = scaler != null ? scaler.matchWidthOrHeight : 0;
@@ -51,7 +56,9 @@ internal static class ResponsiveEditorChecks
                 CheckPanelAndFooter(root, canvas, check, "short canvas");
             }
             else
+            {
                 check(false, "native menu CanvasScaler is available for short-window regression");
+            }
 
             CheckScroll(root, check);
             if (scaler != null)
@@ -63,9 +70,13 @@ internal static class ResponsiveEditorChecks
                 Canvas.ForceUpdateCanvases();
             }
             if (part.Part.State is FunctionReturnState)
+            {
                 CheckAdvancedAndDraft(root, part, check);
+            }
             else if (part.Part.State is FunctionCallState)
+            {
                 CheckCallCaptionAndDraft(root, check);
+            }
         }
         finally
         {
@@ -106,9 +117,11 @@ internal static class ResponsiveEditorChecks
                 }
             }
             if (part.Part.State is FunctionReturnState)
+            {
                 typeof(UiRedesignChecks)
                     .GetMethod("RenderCanvas", PrivateStatic)
                     .Invoke(null, new object[] { canvas, "return-advanced-sources", 1280, 720 });
+            }
         }
     }
 
@@ -145,7 +158,9 @@ internal static class ResponsiveEditorChecks
         }
         var feedback = (TMP_Text)Editor.GetField("_feedback", PrivateStatic).GetValue(null);
         if (feedback != null)
+        {
             check(feedback.transform.parent == root.transform, label + " feedback stays visible in the fixed footer");
+        }
     }
 
     private static void CheckScroll(GameObject root, Action<bool, string> check)
@@ -153,7 +168,10 @@ internal static class ResponsiveEditorChecks
         var scroll = root.GetComponentsInChildren<ScrollRect>(true).FirstOrDefault(s => s.name == "Sources (scroll)");
         check(scroll != null, "editor content is hosted in the flexible Sources scroll viewport");
         if (scroll == null)
+        {
             return;
+        }
+
         check(
             scroll.vertical && scroll.content != null && scroll.viewport != null,
             "Sources scroll has a vertical content viewport"
@@ -164,7 +182,9 @@ internal static class ResponsiveEditorChecks
             "Sources scroll uses a real auto-hiding vertical scrollbar"
         );
         if (scroll.content == null || scroll.viewport == null || scroll.verticalScrollbar == null)
+        {
             return;
+        }
 
         var added = new System.Collections.Generic.List<GameObject>();
         try
@@ -198,7 +218,10 @@ internal static class ResponsiveEditorChecks
         finally
         {
             foreach (var row in added)
+            {
                 UnityEngine.Object.DestroyImmediate(row);
+            }
+
             LayoutRebuilder.ForceRebuildLayoutImmediate(scroll.content);
             Canvas.ForceUpdateCanvases();
         }
@@ -210,7 +233,10 @@ internal static class ResponsiveEditorChecks
             .FirstOrDefault(b => b.name == "Advanced · External signals");
         check(advanced != null, "Return editor exposes a collapsed Advanced · External signals section");
         if (advanced == null)
+        {
             return;
+        }
+
         check(
             !root.GetComponentsInChildren<TMP_InputField>(true).Any(i => i.name == "Search sources"),
             "external source search stays collapsed until requested"
@@ -241,12 +267,18 @@ internal static class ResponsiveEditorChecks
             root = (GameObject)Editor.GetField("_root", PrivateStatic).GetValue(null);
             check(root != null, "focused directory refresh retains a live editor root");
             if (root == null)
+            {
                 return;
+            }
+
             var current = root.GetComponentsInChildren<TMP_InputField>(true).FirstOrDefault(i => i.name == "Name");
             check(ReferenceEquals(before, current), "directory refresh defers rebuild while the name field is focused");
             check(current?.text == "Draft survives directory refresh", "Return name draft survives directory refresh");
             if (EventSystem.current != null)
+            {
                 EventSystem.current.SetSelectedGameObject(null);
+            }
+
             nameInput.DeactivateInputField();
         }
 
@@ -257,7 +289,10 @@ internal static class ResponsiveEditorChecks
         root = (GameObject)Editor.GetField("_root", PrivateStatic).GetValue(null);
         check(root != null, "expanded source editor rebuilds after the focused draft is released");
         if (root == null)
+        {
             return;
+        }
+
         var search = root.GetComponentsInChildren<TMP_InputField>(true).FirstOrDefault(i => i.name == "Search sources");
         var sourceDropdown = root.GetComponentsInChildren<TMP_Dropdown>(true)
             .FirstOrDefault(d => d.name == "Source dropdown");
@@ -267,7 +302,9 @@ internal static class ResponsiveEditorChecks
             "expanded source controls provide search, selection and explicit Identify source action"
         );
         if (search == null || sourceDropdown == null || identify == null)
+        {
             return;
+        }
 
         search.text = "beta";
         check(
@@ -319,10 +356,16 @@ internal static class ResponsiveEditorChecks
         var dropdown = root.GetComponentsInChildren<TMP_Dropdown>(true)
             .FirstOrDefault(d => d.name == "Function dropdown");
         if (dropdown == null)
+        {
             dropdown = root.GetComponentsInChildren<TMP_Dropdown>(true).FirstOrDefault();
+        }
+
         check(dropdown != null, "Call editor retains its explicit function dropdown");
         if (dropdown == null)
+        {
             return;
+        }
+
         var originalOptions = dropdown.options.ToList();
         dropdown.options = Enumerable
             .Range(0, 40)

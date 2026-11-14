@@ -117,7 +117,10 @@ internal static class CallSizingDefaultsChecks
             Near(check, threeInputs.Output, 5, "three-input Call uses all three wired values including wired zero");
 
             foreach (SocketConnection edge in edges)
+            {
                 connections.SignalConnectionGroups.OnConnectionDelete(edge);
+            }
+
             edges.Clear();
             Guid noDefaultId = Guid.NewGuid(),
                 noDefaultParameter = Guid.NewGuid();
@@ -154,7 +157,10 @@ internal static class CallSizingDefaultsChecks
         finally
         {
             foreach (SocketConnection edge in edges)
+            {
                 connections.SignalConnectionGroups.OnConnectionDelete(edge);
+            }
+
             definitionsField.SetValue(null, oldDefinitions);
             parentsField.SetValue(null, oldParents);
             pendingField.SetValue(null, oldPending);
@@ -265,7 +271,10 @@ internal static class CallSizingDefaultsChecks
         finally
         {
             foreach (SocketConnection edge in edges)
+            {
                 connections.SignalConnectionGroups.OnConnectionDelete(edge);
+            }
+
             UnityEngine.Object.DestroyImmediate(host);
         }
     }
@@ -274,7 +283,10 @@ internal static class CallSizingDefaultsChecks
     {
         object[] args = new object[3];
         for (int i = 0; i < args.Length; i++)
+        {
             args[i] = Parameter(parameters[i], "p" + (i + 1), i + 1, defaults[i]);
+        }
+
         Array nodes = Array.CreateInstance(AssemblyType("FunctionNode"), 5);
         nodes.SetValue(Node("Parameter", reference: parameters[0]), 0);
         nodes.SetValue(Node("Parameter", reference: parameters[1]), 1);
@@ -309,7 +321,10 @@ internal static class CallSizingDefaultsChecks
     {
         Array parameterArray = Array.CreateInstance(AssemblyType("FunctionParameter"), parameters.Length);
         for (int i = 0; i < parameters.Length; i++)
+        {
             parameterArray.SetValue(parameters[i], i);
+        }
+
         return Graph(id, name, parameterArray, nodes, result, structure);
     }
 

@@ -20,7 +20,9 @@ internal static class NativeStateSerialization
     internal static void Install()
     {
         if (_harmony != null)
+        {
             return;
+        }
 
         VerifyAssembly(typeof(StatefulPartSerialization).Assembly, AssemblyCSharpSha256);
         MethodInfo writeState = ExactMethod("WriteState", typeof(void), typeof(Writer), typeof(IStatefulPartState));
@@ -49,10 +51,13 @@ internal static class NativeStateSerialization
     {
         MethodInfo method = AccessTools.Method(typeof(StatefulPartSerialization), name, parameters);
         if (method == null || method.ReturnType != returnType || !method.IsStatic)
+        {
             throw new MissingMethodException(
                 typeof(StatefulPartSerialization).FullName,
                 name + "(" + string.Join(",", Array.ConvertAll(parameters, type => type.FullName)) + ")"
             );
+        }
+
         return method;
     }
 
@@ -60,21 +65,28 @@ internal static class NativeStateSerialization
     {
         string path = assembly.Location;
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
             throw new InvalidOperationException("Cannot identify loaded native assembly " + assembly.GetName().Name);
+        }
 
         using SHA256 sha = SHA256.Create();
         using FileStream stream = File.OpenRead(path);
         string actual = BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
         if (!string.Equals(actual, expectedSha256, StringComparison.OrdinalIgnoreCase))
+        {
             throw new InvalidOperationException(
                 "Unsupported Assembly-CSharp.dll identity " + actual + "; expected " + expectedSha256
             );
+        }
     }
 
     private static bool WriteCallState(Writer writer, IStatefulPartState state)
     {
         if (!(state is FunctionPartState custom))
+        {
             return true;
+        }
+
         writer.WriteUInt8Unpacked(SchemaVersion);
         writer.WriteString(FunctionStateCodec.Encode(custom, false));
         return false;
@@ -83,11 +95,15 @@ internal static class NativeStateSerialization
     private static bool ReadCallState(IStatefulPartState originalState, Reader reader, ref IStatefulPartState __result)
     {
         if (!(originalState is FunctionPartState))
+        {
             return true;
+        }
 
         byte schemaVersion = reader.ReadUInt8Unpacked();
         if (schemaVersion != SchemaVersion)
+        {
             throw new InvalidDataException("Unsupported function-part wire schema " + schemaVersion);
+        }
 
         __result = FunctionStateCodec.Decode(reader.ReadStringAllocated(), originalState.GetType(), false);
         return false;

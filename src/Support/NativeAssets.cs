@@ -20,9 +20,15 @@ public static class NativeAssets
     public static Material Material(string name)
     {
         if (string.IsNullOrEmpty(name))
+        {
             return null;
+        }
+
         if (Materials.TryGetValue(name, out var cached))
+        {
             return cached;
+        }
+
         Material found = Resources.FindObjectsOfTypeAll<Material>().FirstOrDefault(m => m != null && m.name == name);
         Materials[name] = found;
         return found;
@@ -34,8 +40,12 @@ public static class NativeAssets
         {
             _partsByName = new Dictionary<string, PartSettings>();
             foreach (var settings in Resources.FindObjectsOfTypeAll<PartSettings>())
+            {
                 if (settings != null && !_partsByName.ContainsKey(settings.name))
+                {
                     _partsByName[settings.name] = settings;
+                }
+            }
         }
         return name != null && _partsByName.TryGetValue(name, out var found) && found != null ? found : null;
     }

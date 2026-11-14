@@ -272,17 +272,31 @@ public static class BroadcastStateChecks
         {
             MethodInfo unwatch = runtime.GetMethod("Unwatch", BindingFlags.Static | BindingFlags.NonPublic);
             foreach (DictionaryEntry entry in Snapshot(watchedStates))
+            {
                 if (!oldWatchedStates.Any(old => Equals(old.Key, entry.Key) && ReferenceEquals(old.Value, entry.Value)))
+                {
                     unwatch?.Invoke(null, new[] { entry.Value });
+                }
+            }
+
             watchedStates.Clear();
             foreach (DictionaryEntry entry in oldWatchedStates)
+            {
                 watchedStates.Add(entry.Key, entry.Value);
+            }
+
             refreshPatch?.UnpatchSelf();
             if (serviceObject != null)
+            {
                 UnityEngine.Object.DestroyImmediate(serviceObject);
+            }
+
             catalogEntries.Clear();
             foreach (DictionaryEntry entry in oldCatalogEntries)
+            {
                 catalogEntries.Add(entry.Key, entry.Value);
+            }
+
             definitionsField.SetValue(null, oldDefinitions);
             parentsField.SetValue(null, oldParents);
             transmittersField.SetValue(null, oldTransmitters);
@@ -320,7 +334,9 @@ public static class BroadcastStateChecks
             "native runtime exposes the per-ship watch lifecycle hooks"
         );
         if (track == null || untrack == null || reset == null || added == null || updated == null)
+        {
             return;
+        }
 
         track.Invoke(null, new object[] { tracked });
         check(
@@ -548,7 +564,10 @@ public static class BroadcastStateChecks
         var copy = new List<DictionaryEntry>();
         IDictionaryEnumerator entries = dictionary.GetEnumerator();
         while (entries.MoveNext())
+        {
             copy.Add(new DictionaryEntry(entries.Key, entries.Value));
+        }
+
         return copy;
     }
 }

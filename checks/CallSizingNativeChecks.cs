@@ -280,10 +280,12 @@ internal static class CallSizingNativeChecks
         );
         check(tracker.sockets[3] != null, $"native placed visual at size {count} keeps output socket 3");
         for (int id = 0; id < 3; id++)
+        {
             check(
                 (tracker.sockets[id] != null) == (id < count),
                 $"native visual at size {count} hides input socket {id} when unused"
             );
+        }
     }
 
     private static void CheckSolid(
@@ -298,7 +300,10 @@ internal static class CallSizingNativeChecks
             $"native solid collider exists for Call size {count}"
         );
         if (!colliderObject)
+        {
             return;
+        }
+
         var box = colliderObject.GetComponent<BoxCollider>();
         var identifier = colliderObject.GetComponent<ShipPartIdentifier>();
         Bounds expected = Variant(count).Bounds;
@@ -341,7 +346,10 @@ internal static class CallSizingNativeChecks
     private static IShipPartVisual Visual(ShipPartVisuals visuals, ushort partId)
     {
         if (!visuals.TryGetFloatingPartVisual(partId, out IShipPartVisual visual))
+        {
             throw new InvalidOperationException("Native Call visual was not registered.");
+        }
+
         return visual;
     }
 

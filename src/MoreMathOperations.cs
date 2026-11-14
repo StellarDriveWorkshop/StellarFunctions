@@ -211,7 +211,10 @@ internal static class MoreMathOperations
                     }
                 }
                 else
+                {
                     nextElapsed = 0;
+                }
+
                 return new MoreMathStep(nextOutput ? 1 : 0, active ? 1 : 0, nextElapsed);
             }
             case 20:

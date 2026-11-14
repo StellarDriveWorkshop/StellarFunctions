@@ -43,14 +43,22 @@ public static class NativeServices
         {
             bool alive = cached is UnityEngine.Object unity ? unity != null : cached != null;
             if (alive)
+            {
                 return (T)cached;
+            }
+
             ServiceCache.Remove(type);
         }
         T service = Service<T>();
         if (service != null)
+        {
             ServiceCache[type] = service;
+        }
         else
+        {
             ServiceCache.Remove(type);
+        }
+
         return service;
     }
 
@@ -59,7 +67,10 @@ public static class NativeServices
     private static void EnsureSceneHook()
     {
         if (_sceneHooked)
+        {
             return;
+        }
+
         _sceneHooked = true;
         UnityEngine.SceneManagement.SceneManager.sceneLoaded += (scene, mode) => InvalidateServices();
         UnityEngine.SceneManagement.SceneManager.sceneUnloaded += scene => InvalidateServices();
@@ -136,7 +147,10 @@ public static class NativeServices
         get
         {
             if (!_diagnostics.HasValue)
+            {
                 _diagnostics = DetectDiagnostics();
+            }
+
             return _diagnostics.Value;
         }
         set => _diagnostics = value;
@@ -155,7 +169,9 @@ public static class NativeServices
                     || string.Equals(env, "yes", StringComparison.OrdinalIgnoreCase)
                 )
             )
+            {
                 return true;
+            }
         }
         catch { }
         try
@@ -173,7 +189,10 @@ public static class NativeServices
     private static void Write(string level, string scope, string message)
     {
         if (!LogGate.Visible(LogGate.Level(level), Floor, DiagnosticsEnabled))
+        {
             return;
+        }
+
         string text = "[support:" + scope + "] " + message;
         switch (level)
         {

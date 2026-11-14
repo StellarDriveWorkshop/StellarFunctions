@@ -23,7 +23,10 @@ public sealed class PartTracking
     public bool Mark(uint shipId, ushort partId)
     {
         if (!_seen.TryGetValue(shipId, out HashSet<ushort> set))
+        {
             _seen[shipId] = set = new HashSet<ushort>();
+        }
+
         return set.Add(partId);
     }
 
@@ -33,14 +36,22 @@ public sealed class PartTracking
     public IReadOnlyList<ushort> CollectRemoved(uint shipId, IReadOnlyCollection<ushort> present)
     {
         if (!_seen.TryGetValue(shipId, out HashSet<ushort> set) || set.Count == 0)
+        {
             return None;
+        }
+
         var removed = set.Where(id => !present.Contains(id)).ToList();
         foreach (ushort id in removed)
+        {
             set.Remove(id);
+        }
         // Drop emptied ship entries so long-running servers do not retain
         // one set per ship ever seen; a later re-add starts a fresh edge.
         if (set.Count == 0)
+        {
             _seen.Remove(shipId);
+        }
+
         return removed;
     }
 }

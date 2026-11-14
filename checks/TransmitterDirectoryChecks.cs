@@ -182,11 +182,16 @@ internal static class TransmitterDirectoryChecks
         {
             parents.Clear();
             foreach (DictionaryEntry entry in oldParents)
+            {
                 parents[entry.Key] = entry.Value;
+            }
+
             var set = transmittersField.GetValue(null);
             set.GetType().GetMethod("Clear").Invoke(set, null);
             foreach (uint value in oldTransmitters)
+            {
                 set.GetType().GetMethod("Add").Invoke(set, new object[] { value });
+            }
         }
     }
 

@@ -12,11 +12,20 @@ public sealed class CallPartBehaviour : PartBehaviour
     public override void OnAction(ContentPart part, TrackedPlayerServer player, string action)
     {
         if (part.Part?.State is not FunctionCallState state)
+        {
             return;
+        }
+
         if (!FunctionEdits.Authorize(part, player, action))
+        {
             return;
+        }
+
         if (FunctionDirectory.Handle(part, player, action))
+        {
             return;
+        }
+
         NativeFunctionRuntime.Refresh();
         var liveShips = ServiceLocator.GetService<ShipsServerTracker>();
         if (
@@ -26,11 +35,16 @@ public sealed class CallPartBehaviour : PartBehaviour
             || livePart.State is not FunctionCallState current
             || current.InstanceId != state.InstanceId
         )
+        {
             return;
+        }
+
         state = current;
 
         if (CallSizing.Handle(liveShip, livePart, state, action))
+        {
             return;
+        }
 
         if (action == "reset-input-bindings")
         {
@@ -42,6 +56,7 @@ public sealed class CallPartBehaviour : PartBehaviour
             {
                 var bindingShips = ServiceLocator.GetService<ShipsServerTracker>();
                 if (bindingShips != null && bindingShips.TryGetTrackedShip(part.ShipId, out var owner))
+                {
                     owner.UpdatePartState(
                         part.PartId,
                         NativeFunctionRuntime.Bind(
@@ -54,6 +69,7 @@ public sealed class CallPartBehaviour : PartBehaviour
                             true
                         )
                     );
+                }
             }
             return;
         }
@@ -62,6 +78,7 @@ public sealed class CallPartBehaviour : PartBehaviour
         {
             var tracker = ServiceLocator.GetService<ShipsServerTracker>();
             if (tracker != null && tracker.TryGetTrackedShip(part.ShipId, out var owner))
+            {
                 owner.UpdatePartState(
                     part.PartId,
                     state with
@@ -71,6 +88,8 @@ public sealed class CallPartBehaviour : PartBehaviour
                         Status = "OK",
                     }
                 );
+            }
+
             return;
         }
         bool confirmed =
@@ -82,22 +101,31 @@ public sealed class CallPartBehaviour : PartBehaviour
                 || !action.StartsWith(ClientCallInteraction.SelectAction, System.StringComparison.Ordinal)
             )
         )
+        {
             return;
+        }
+
         string requested = confirmed
             ? state.PendingFunctionId
             : action.Substring(ClientCallInteraction.SelectAction.Length);
         if (!System.Guid.TryParseExact(requested, "N", out var requestedId) || requestedId == System.Guid.Empty)
+        {
             return;
+        }
         // Resolve only valid definitions in this player's authoritative assembly.
         FunctionCatalog.Entry next = FunctionCatalog
             .Visible(part.ShipId)
             .FirstOrDefault(entry => entry.Id == requested);
         if (next == null)
+        {
             return;
+        }
+
         if (!confirmed && next.Id == state.SelectedFunctionId)
         {
             var sameShips = ServiceLocator.GetService<ShipsServerTracker>();
             if (sameShips != null && sameShips.TryGetTrackedShip(part.ShipId, out var owner))
+            {
                 owner.UpdatePartState(
                     part.PartId,
                     state with
@@ -107,6 +135,8 @@ public sealed class CallPartBehaviour : PartBehaviour
                         Status = "OK",
                     }
                 );
+            }
+
             return;
         }
         if (
@@ -119,6 +149,7 @@ public sealed class CallPartBehaviour : PartBehaviour
         {
             ShipsServerTracker tracker = ServiceLocator.GetService<ShipsServerTracker>();
             if (tracker != null && tracker.TryGetTrackedShip(part.ShipId, out TrackedShipServer owner))
+            {
                 owner.UpdatePartState(
                     part.PartId,
                     state with
@@ -128,6 +159,8 @@ public sealed class CallPartBehaviour : PartBehaviour
                         PendingFunctionName = next.Name,
                     }
                 );
+            }
+
             return;
         }
 
@@ -149,7 +182,10 @@ public sealed class CallPartBehaviour : PartBehaviour
                 Slot2 = "",
             };
             if (NativeFunctionRuntime.TryDefinition(next.Id, part.ShipId, out var definition))
+            {
                 selected = NativeFunctionRuntime.Bind(selected, definition.Graph, true);
+            }
+
             ship.UpdatePartState(part.PartId, selected);
         }
     }

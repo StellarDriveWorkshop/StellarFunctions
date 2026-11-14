@@ -29,7 +29,10 @@ internal static class MoreMathLifecycleChecks
     internal static void Run(Action<bool, string> check)
     {
         if (!AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == "MoreMath"))
+        {
             return;
+        }
+
         var runtime = typeof(FunctionCallState).Assembly.GetType("StellarFunctions.NativeFunctionRuntime");
         check(
             AccessTools.Field(runtime, "_ships").GetValue(null) == null,
@@ -192,7 +195,10 @@ internal static class MoreMathLifecycleChecks
             void Tick()
             {
                 foreach (var group in connections.SignalConnectionGroups.ConnectionGroups.Values.ToArray())
+                {
                     connections.UpdateSignalGroupValue(group.Id);
+                }
+
                 AccessTools
                     .Field(typeof(SignalConnectionsServerUpdater), "_reloadCacheOnNextTick")
                     .SetValue(updater, false);
@@ -279,10 +285,16 @@ internal static class MoreMathLifecycleChecks
         finally
         {
             if (updaterObject != null)
+            {
                 UnityEngine.Object.DestroyImmediate(updaterObject);
+            }
+
             AccessTools.Method(runtime, "Reset").Invoke(null, null);
             foreach (var edge in edges)
+            {
                 connections.SignalConnectionGroups.OnConnectionDelete(edge);
+            }
+
             UnityEngine.Object.DestroyImmediate(service);
         }
     }

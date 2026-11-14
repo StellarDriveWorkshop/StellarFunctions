@@ -26,12 +26,14 @@ internal static class FunctionSourcePresentation
     internal static string Label(ContentPart context, EntityPartSocket socket)
     {
         if (!TryResolvePart(socket, out StatefulPart part))
+        {
             return "Unavailable source · section "
                 + socket.PartContext.ShipId
                 + " · part "
                 + socket.PartContext.PartId
                 + " · output "
                 + socket.Socket.SocketId;
+        }
 
         string type = FriendlyType(part.State, part.Settings?.name);
         string meaning = OutputMeaning(part.State, socket.Socket.SocketId);
@@ -102,7 +104,9 @@ internal static class FunctionSourcePresentation
     internal static void Tick()
     {
         if (_highlightOwner != null && Time.unscaledTime >= _removeHighlightAt)
+        {
             RemoveHighlight();
+        }
     }
 
     internal static void Reset() => RemoveHighlight();
@@ -119,49 +123,103 @@ internal static class FunctionSourcePresentation
     internal static string FriendlyType(IStatefulPartState state, string nativeName = null)
     {
         if (state is FluidTankState)
+        {
             return "Fluid Tank";
+        }
+
         if (state is GasSensorState)
+        {
             return "Gas Sensor";
+        }
+
         if (state is VelocitySensorState)
+        {
             return "Velocity Sensor";
+        }
+
         if (state is AngularVelSensorState)
+        {
             return "Angular Velocity Sensor";
+        }
+
         if (state is ConstantState)
+        {
             return "Constant";
+        }
+
         if (state is LeverState)
+        {
             return "Lever";
+        }
+
         if (state is MathGateState)
+        {
             return "Math Gate";
+        }
+
         if (state is SignalProcessorState)
+        {
             return "Signal Processor";
+        }
+
         if (state is MemoryRegisterState)
+        {
             return "Memory Register";
+        }
+
         return string.IsNullOrWhiteSpace(nativeName) ? "Signal source" : nativeName;
     }
 
     internal static string OutputMeaning(IStatefulPartState state, byte? socketId = null)
     {
         if (state is FluidTankState tank)
+        {
             return socketId == null || socketId == 2 ? "tank fluid quantity" : "fluid tank signal";
+        }
+
         if (state is GasSensorState gas)
+        {
             return "gas reading";
+        }
+
         if (state is VelocitySensorState velocity)
+        {
             return "linear velocity";
+        }
+
         if (state is AngularVelSensorState angular)
+        {
             return "angular velocity";
+        }
+
         if (state is ConstantState constant)
+        {
             return "fixed value "
                 + constant.ConstantValue.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
         if (state is LeverState)
+        {
             return "manual control value";
+        }
+
         if (state is MathGateState math)
+        {
             return socketId == null || socketId == 2 ? BinaryMeaning(math.Operation) : "math gate signal";
+        }
+
         if (state is SignalProcessorState processor)
+        {
             return socketId == null || socketId == 1 ? UnaryMeaning(processor.Operation) : "signal processor output";
+        }
+
         if (state is MemoryRegisterState memory)
+        {
             return socketId == null || socketId == 2
                 ? "stored value " + memory.Value.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)
                 : "memory register signal";
+        }
+
         return "signal output";
     }
 
@@ -228,7 +286,10 @@ internal static class FunctionSourcePresentation
         part = null;
         var ships = ServiceLocator.GetService<IShipsClientProvider>();
         if (ships == null || !ships.TryGetShip(socket.PartContext.ShipId, out var ship))
+        {
             return false;
+        }
+
         part = ship.StatefulParts?.FirstOrDefault(p => p.Id == socket.PartContext.PartId);
         return part != null && part.State != null;
     }
@@ -256,14 +317,19 @@ internal static class FunctionSourcePresentation
                 )
                 || !ships.TryGetPartPosition(socket.PartContext, out Vector3 sourcePosition)
             )
+            {
                 return "";
+            }
 
             Vector3 sourceInContextSpace =
                 sourceShip.RelativeSpaceId == contextShip.RelativeSpaceId
                     ? sourcePosition
                     : transpose.Position(sourceShip.RelativeSpaceId, contextShip.RelativeSpaceId, sourcePosition);
             if (!Finite(contextPosition) || !Finite(sourceInContextSpace))
+            {
                 return "";
+            }
+
             float distance = Vector3.Distance(contextPosition, sourceInContextSpace);
             return float.IsFinite(distance)
                 ? distance.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " m"
@@ -281,15 +347,25 @@ internal static class FunctionSourcePresentation
     private static bool HasRedEmission(GameObject root)
     {
         if (root == null)
+        {
             return false;
+        }
+
         foreach (MeshRenderer renderer in root.GetComponentsInChildren<MeshRenderer>())
-        foreach (Material material in renderer.materials)
-            if (material != null && material.HasColor(EmissionColor))
+        {
+            foreach (Material material in renderer.materials)
             {
-                Color color = material.GetColor(EmissionColor);
-                if (color.r > 0.99f && color.g < 0.01f && color.b < 0.01f)
-                    return true;
+                if (material != null && material.HasColor(EmissionColor))
+                {
+                    Color color = material.GetColor(EmissionColor);
+                    if (color.r > 0.99f && color.g < 0.01f && color.b < 0.01f)
+                    {
+                        return true;
+                    }
+                }
             }
+        }
+
         return false;
     }
 

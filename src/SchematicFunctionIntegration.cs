@@ -31,23 +31,34 @@ internal static class SchematicFunctionIntegration
     internal static void InstallIfPresent()
     {
         if (_checked || Time.unscaledTime < _nextAttempt)
+        {
             return;
+        }
+
         _nextAttempt = Time.unscaledTime + 1f;
         Assembly assembly = AppDomain
             .CurrentDomain.GetAssemblies()
             .FirstOrDefault(a => a.GetName().Name == "ShipSchematics");
         if (assembly == null)
+        {
             return;
+        }
+
         _checked = true;
         try
         {
             bool supported;
             using (SHA256 sha = SHA256.Create())
             using (var file = File.OpenRead(assembly.Location))
+            {
                 supported =
                     BitConverter.ToString(sha.ComputeHash(file)).Replace("-", "").ToLowerInvariant() == ExpectedSha;
+            }
+
             if (!supported)
+            {
                 throw new InvalidOperationException("Unsupported ShipSchematics binary");
+            }
 
             InstallAdapter(assembly);
         }
@@ -107,7 +118,9 @@ internal static class SchematicFunctionIntegration
             new[] { fileType, typeof(Vector3), typeof(Quaternion), typeof(string).MakeByRefType() }
         );
         if (strip == null || retarget == null || place == null)
+        {
             throw new MissingMethodException("Pinned schematic metadata/copy contract");
+        }
 
         _harmony = new HarmonyLib.Harmony(AdapterOwner);
         _harmony.Patch(strip, prefix: Hook(nameof(BeforeStrip)), postfix: Hook(nameof(AfterStrip)));
@@ -131,7 +144,9 @@ internal static class SchematicFunctionIntegration
             : kind == HarmonyPatchType.Postfix ? info?.Postfixes
             : info?.Finalizers;
         if (patches == null || !patches.Any(p => p.owner == owner && p.PatchMethod == expected))
+        {
             throw new InvalidOperationException("Missing schematic " + kind + " hook: " + name);
+        }
     }
 
     private static void InstallUnsupportedGuards(Assembly assembly)
@@ -143,7 +158,10 @@ internal static class SchematicFunctionIntegration
         {
             Type type = assembly.GetType(name);
             if (type == null)
+            {
                 continue;
+            }
+
             foreach (
                 MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                     .Where(m => m.Name == "Capture" || m.Name == "Place")
@@ -154,9 +172,13 @@ internal static class SchematicFunctionIntegration
                     _guards.Patch(method, prefix: Hook(nameof(RejectUnsupported)));
                     RequirePatch(method, nameof(RejectUnsupported), HarmonyPatchType.Prefix, GuardOwner);
                     if (method.Name == "Capture")
+                    {
                         captures++;
+                    }
                     else
+                    {
                         places++;
+                    }
                 }
                 catch (Exception error)
                 {
@@ -167,6 +189,7 @@ internal static class SchematicFunctionIntegration
             }
         }
         if (captures == 0 || places == 0 || errors.Count > 0)
+        {
             throw new InvalidOperationException(
                 "Capture guards="
                     + captures
@@ -174,6 +197,7 @@ internal static class SchematicFunctionIntegration
                     + places
                     + (errors.Count > 0 ? "; " + string.Join("; ", errors) : string.Empty)
             );
+        }
     }
 
     private static void RejectUnsupported() =>
@@ -200,21 +224,29 @@ internal static class SchematicFunctionIntegration
     private static void AfterStrip(SerializableShip ship, SerializableBeaconState[] __state)
     {
         if (ship != null && __state.Length > 0)
+        {
             ship.beaconStates = (ship.beaconStates ?? Array.Empty<SerializableBeaconState>())
                 .Where(s => !IsOurs(s))
                 .Concat(__state)
                 .ToArray();
+        }
     }
 
     private static void AfterRetarget(SerializableShip ship, Func<uint, uint> resolve)
     {
         if (ship?.beaconStates == null)
+        {
             return;
+        }
+
         for (int i = 0; i < ship.beaconStates.Length; i++)
         {
             var record = ship.beaconStates[i];
             if (!IsOurs(record))
+            {
                 continue;
+            }
+
             var state = Decode(ship, record);
             if (state is FunctionReturnState returned)
             {
@@ -224,23 +256,33 @@ internal static class SchematicFunctionIntegration
                 {
                     string[] key = p.Name.Split(':');
                     if (key.Length != 2 || !uint.TryParse(key[0], out uint old))
+                    {
                         throw new InvalidDataException("Invalid function body address.");
+                    }
+
                     string target = resolve(old) + ":" + key[1];
                     if (remapped[target] != null)
+                    {
                         throw new InvalidDataException(
                             "Function body addresses collided while remapping a partial schematic."
                         );
+                    }
+
                     remapped[target] = p.Value.DeepClone();
                 }
                 JObject sources = NativeFunctionCompiler.ParseObject(returned.Sources, 32768);
                 foreach (string section in new[] { "channels", "parts" })
+                {
                     if (sources[section] is JObject entries)
                     {
                         var next = new JObject();
                         foreach (JProperty p in entries.Properties())
                         {
                             if (p.Value is not JObject source)
+                            {
                                 throw new InvalidDataException("Invalid external function source.");
+                            }
+
                             JObject copy = (JObject)source.DeepClone();
                             copy["ship"] = resolve((uint?)source["ship"] ?? 0);
                             string key = p.Name;
@@ -248,15 +290,23 @@ internal static class SchematicFunctionIntegration
                             {
                                 string[] address = key.Split(':');
                                 if (address.Length != 2 || !uint.TryParse(address[0], out uint old))
+                                {
                                     throw new InvalidDataException("Invalid function source address.");
+                                }
+
                                 key = resolve(old) + ":" + address[1];
                             }
                             if (next[key] != null)
+                            {
                                 throw new InvalidDataException("Function source addresses collided during remapping.");
+                            }
+
                             next[key] = copy;
                         }
                         sources[section] = next;
                     }
+                }
+
                 state = returned with
                 {
                     NodeIdentities = remapped.ToString(Formatting.None),
@@ -272,16 +322,33 @@ internal static class SchematicFunctionIntegration
     {
         ushort settings = 0;
         if (ship.statefulFloatingParts != null)
+        {
             foreach (var part in ship.statefulFloatingParts)
+            {
                 if (part.id == record.partId)
+                {
                     settings = part.settingsId;
+                }
+            }
+        }
+
         if (ship.statefulHullParts != null)
+        {
             foreach (var part in ship.statefulHullParts)
+            {
                 if (part.id == record.partId)
+                {
                     settings = part.settingsId;
+                }
+            }
+        }
+
         Type type = FunctionStateCodec.StateType(settings);
         if (type == null)
+        {
             throw new InvalidDataException("Function metadata does not belong to a function content part.");
+        }
+
         return FunctionStateCodec.Decode(record.name.Substring(NativeFunctionPersistence.Prefix.Length), type, true);
     }
 
@@ -289,38 +356,63 @@ internal static class SchematicFunctionIntegration
     {
         __state = _copyIds;
         if (file == null)
+        {
             return;
+        }
+
         Type type = file.GetType();
         string root = (string)type.GetField("shipJson").GetValue(file);
         string[] children = (string[])type.GetField("childShipJson").GetValue(file) ?? Array.Empty<string>();
         if (children.Length > 127)
+        {
             throw new InvalidDataException("Function schematic ship limit exceeded.");
+        }
+
         var map = new Dictionary<Guid, Guid>();
         int count = 0;
         foreach (string json in new[] { root }.Concat(children))
         {
             if (json == null || json.Length > 8388608)
+            {
                 throw new InvalidDataException("Function schematic payload limit exceeded.");
+            }
+
             SerializableShip ship = JsonUtility.FromJson<SerializableShip>(json);
             foreach (var record in ship.beaconStates ?? Array.Empty<SerializableBeaconState>())
             {
                 if (!IsOurs(record))
+                {
                     continue;
+                }
+
                 if (++count > 4096)
+                {
                     throw new InvalidDataException("Function schematic part limit exceeded.");
+                }
+
                 FunctionPartState state = Decode(ship, record);
                 if (!map.ContainsKey(state.StableId))
+                {
                     map[state.StableId] = Guid.NewGuid();
+                }
+
                 if (state is FunctionReturnState returned)
+                {
                     foreach (
                         JProperty p in NativeFunctionCompiler.ParseObject(returned.NodeIdentities, 65536).Properties()
                     )
                     {
                         if (!Guid.TryParse((string)p.Value, out Guid id) || id == Guid.Empty)
+                        {
                             throw new InvalidDataException("Invalid schematic node identity.");
+                        }
+
                         if (!map.ContainsKey(id))
+                        {
                             map[id] = Guid.NewGuid();
+                        }
                     }
+                }
             }
         }
         _copyIds = map;
@@ -335,23 +427,38 @@ internal static class SchematicFunctionIntegration
     internal static FunctionPartState RemapLoaded(FunctionPartState state)
     {
         if (_copyIds == null)
+        {
             return state;
+        }
+
         Guid Map(Guid id)
         {
             if (id == Guid.Empty)
+            {
                 return Guid.Empty;
+            }
+
             if (!_copyIds.TryGetValue(id, out Guid next))
+            {
                 _copyIds[id] = next = Guid.NewGuid();
+            }
+
             return next;
         }
         string Reference(string text) => Guid.TryParse(text, out Guid id) ? Map(id).ToString("N") : string.Empty;
         if (state is FunctionParamState p)
+        {
             return p with { ParamId = Map(p.ParamId) };
+        }
+
         if (state is FunctionReturnState r)
         {
             JObject nodes = NativeFunctionCompiler.ParseObject(r.NodeIdentities, 65536);
             foreach (JProperty node in nodes.Properties())
+            {
                 node.Value = Reference((string)node.Value);
+            }
+
             return r with
             {
                 DefinitionId = Map(r.DefinitionId),
@@ -361,7 +468,10 @@ internal static class SchematicFunctionIntegration
             };
         }
         if (state is FunctionTransmitterState transmitter)
+        {
             return transmitter with { TransmitterId = Map(transmitter.TransmitterId) };
+        }
+
         var c = (FunctionCallState)state;
         return c with
         {

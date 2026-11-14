@@ -39,10 +39,16 @@ internal static class NativeTemplateHooks
     internal static void Install()
     {
         if (_harmony != null)
+        {
             return;
+        }
+
         _harmony = new HarmonyLib.Harmony("stellar.functions.templates");
         if (Reload == null || Reload.FieldType != typeof(bool))
+        {
             throw new MissingFieldException("Native signal cache invalidation");
+        }
+
         MethodInfo execute = AccessTools.Method(
             typeof(SignalConnectionsServerUpdater),
             "ExecuteOperations",
@@ -61,7 +67,10 @@ internal static class NativeTemplateHooks
         );
         _recurse = AccessTools.Method(typeof(SignalConnectionsServerUpdater), "RecurseQueueEvaluation");
         if (execute == null || update == null || memory == null || create == null || _recurse == null)
+        {
             throw new MissingMethodException("Native template integration methods");
+        }
+
         _operationType = _recurse.GetParameters()[0].ParameterType;
         _kind = AccessTools.Field(_operationType, "Operation");
         _part = AccessTools.Field(_operationType, "Part");
@@ -72,7 +81,10 @@ internal static class NativeTemplateHooks
             || _part?.FieldType != typeof(PartContext)
             || _group?.FieldType != typeof(uint)
         )
+        {
             throw new MissingFieldException("Native signal operation shape");
+        }
+
         _groupKind = Enum.Parse(_kind.FieldType, "EvaluateCableGroup");
         _partKind = Enum.Parse(_kind.FieldType, "EvaluatePart");
         _queue = AccessTools.Field(typeof(SignalConnectionsServerUpdater), "_operationsToTraverse");
@@ -83,7 +95,10 @@ internal static class NativeTemplateHooks
             Type.EmptyTypes
         );
         if (_queue == null || _dequeue?.ReturnType != _operationType || build == null)
+        {
             throw new MissingMethodException("Native default-only Call scheduling contract");
+        }
+
         _harmony.Patch(build, postfix: new HarmonyMethod(typeof(NativeTemplateHooks), nameof(SeedDefaultOnlyCalls)));
         _harmony.Patch(
             execute,
@@ -111,7 +126,10 @@ internal static class NativeTemplateHooks
             new[] { typeof(StatefulPart) }
         );
         if (remove == null)
+        {
             throw new MissingMethodException("Native part removal boundary");
+        }
+
         _harmony.Patch(remove, postfix: new HarmonyMethod(typeof(NativeTemplateHooks), nameof(AfterPartRemoval)));
     }
 
@@ -128,7 +146,9 @@ internal static class NativeTemplateHooks
     {
         var updater = ServiceLocator.GetService<SignalConnectionsServerUpdater>();
         if (updater != null)
+        {
             Reload.SetValue(updater, true);
+        }
     }
 
     private static void AfterPartRemoval() => NativeFunctionRuntime.Dirty();
@@ -137,21 +157,32 @@ internal static class NativeTemplateHooks
     {
         var ships = ServiceLocator.GetService<ShipsServerTracker>();
         if (ships == null)
-            return;
-        foreach (var ship in ships.LoadedShipsWithChildren)
-        foreach (var part in ship.StatefulParts.Where(p => p.State is FunctionCallState))
         {
-            var address = new PartContext(ship.Id, part.Id);
-            if (NativeFunctionRuntime.IsOwned(address))
-                continue;
-            object op = Activator.CreateInstance(_operationType);
-            _kind.SetValue(op, _partKind);
-            _part.SetValue(op, address);
-            _recurse.Invoke(__instance, new[] { op });
+            return;
         }
+
+        foreach (var ship in ships.LoadedShipsWithChildren)
+        {
+            foreach (var part in ship.StatefulParts.Where(p => p.State is FunctionCallState))
+            {
+                var address = new PartContext(ship.Id, part.Id);
+                if (NativeFunctionRuntime.IsOwned(address))
+                {
+                    continue;
+                }
+
+                object op = Activator.CreateInstance(_operationType);
+                _kind.SetValue(op, _partKind);
+                _part.SetValue(op, address);
+                _recurse.Invoke(__instance, new[] { op });
+            }
+        }
+
         object queue = _queue.GetValue(__instance);
         while (((ICollection)queue).Count > 0)
+        {
             _recurse.Invoke(__instance, new[] { _dequeue.Invoke(queue, null) });
+        }
     }
 
     private static void BeginNativeWrites(out int __state)
@@ -194,7 +225,9 @@ internal static class NativeTemplateHooks
     )
     {
         if (__runOriginal)
+        {
             NativeFunctionRuntime.NoteStateEdit(__instance.Id, partId, __state, state);
+        }
     }
 
     private static bool FilterRelay(ConnectionsTracker __instance, SocketConnection connection, CableType type)
@@ -204,7 +237,10 @@ internal static class NativeTemplateHooks
             || connection.Type != SocketConnectionType.RelayedByTransmitter
             || !NativeFunctionRuntime.IsOurConnectionTracker(__instance)
         )
+        {
             return true;
+        }
+
         if (
             (connection.SocketA.HasValue && NativeFunctionRuntime.IsOwned(connection.SocketA.Value.PartContext))
             || (connection.SocketB.HasValue && NativeFunctionRuntime.IsOwned(connection.SocketB.Value.PartContext))
@@ -219,10 +255,16 @@ internal static class NativeTemplateHooks
     private static void QueueExternalDependencies(SignalConnectionsServerUpdater __instance, object op)
     {
         if (!string.Equals(_kind.GetValue(op).ToString(), "EvaluatePart", StringComparison.Ordinal))
+        {
             return;
+        }
+
         PartContext part = (PartContext)_part.GetValue(op);
         if (NativeFunctionRuntime.IsOwned(part) || !DependencyWalk.Add(part))
+        {
             return;
+        }
+
         try
         {
             foreach (uint group in NativeFunctionRuntime.ExternalGroups(part))

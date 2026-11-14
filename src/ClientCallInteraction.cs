@@ -39,7 +39,9 @@ internal static class ClientCallInteraction
     internal static void Install(string harmonyId)
     {
         if (_harmony != null)
+        {
             return;
+        }
 
         _harmony = new HarmonyLib.Harmony(harmonyId);
 
@@ -53,7 +55,10 @@ internal static class ClientCallInteraction
             new[] { typeof(TrackedPlayerServer), typeof(TrackedShipServer), typeof(StatefulPart) }
         );
         if (serverInteract == null)
+        {
             throw new MissingMethodException(typeof(ShipInteractionService).FullName, "PlayerStartInteracting");
+        }
+
         _harmony.Patch(
             serverInteract,
             prefix: new HarmonyMethod(typeof(ClientCallInteraction), nameof(StartFunctionInteraction))
@@ -64,7 +69,10 @@ internal static class ClientCallInteraction
             new[] { typeof(IStatefulPartState), typeof(GameObject).MakeByRefType() }
         );
         if (menu == null)
+        {
             throw new MissingMethodException("StorageMenuActivator.TryGetRelevantMenuPrefab");
+        }
+
         _harmony.Patch(menu, prefix: new HarmonyMethod(typeof(ClientCallInteraction), nameof(FunctionMenuPrefab)));
         var leave = AccessTools.Method(
             typeof(PlayerLeavableObjectControl),
@@ -72,11 +80,17 @@ internal static class ClientCallInteraction
             new[] { typeof(InputAction.CallbackContext) }
         );
         if (leave == null)
+        {
             throw new MissingMethodException("PlayerLeavableObjectControl.OnLeave");
+        }
+
         _harmony.Patch(leave, prefix: new HarmonyMethod(typeof(ClientCallInteraction), nameof(FunctionLeaveInput)));
         var inventoryOpen = AccessTools.Method(typeof(PlayerInventoryActivator), "SetOpen", new[] { typeof(bool) });
         if (inventoryOpen == null)
+        {
             throw new MissingMethodException("PlayerInventoryActivator.SetOpen");
+        }
+
         _harmony.Patch(inventoryOpen, prefix: new HarmonyMethod(typeof(ClientCallInteraction), nameof(InventoryOpen)));
         FunctionEditor.Install(_harmony);
         // The support layer's generic 6 cm socket stand-off changes cable anchors after
@@ -100,7 +114,10 @@ internal static class ClientCallInteraction
     )
     {
         if (partState is not FunctionPartState)
+        {
             return true;
+        }
+
         menuPrefab =
             AccessTools.Field(typeof(StorageMenuActivator), "smallStorageMenu").GetValue(__instance) as GameObject;
         __result = menuPrefab != null;
@@ -114,10 +131,15 @@ internal static class ClientCallInteraction
             || !ContentConfigMenu.IsOpen
             || ContentConfigMenu.Current.Part?.State is not FunctionPartState state
         )
+        {
             return true;
+        }
         // A typed F in a Param/Return text field is text, never a leave gesture.
         if (IsTyping())
+        {
             return false;
+        }
+
         return true;
     }
 
@@ -125,10 +147,16 @@ internal static class ClientCallInteraction
     {
         var current = EventSystem.current?.currentSelectedGameObject;
         if (current == null)
+        {
             return false;
+        }
+
         var tmp = current.GetComponent<TMP_InputField>();
         if (tmp != null && tmp.isFocused)
+        {
             return true;
+        }
+
         var input = current.GetComponent<InputField>();
         return input != null && input.isFocused;
     }
@@ -136,13 +164,19 @@ internal static class ClientCallInteraction
     private static bool StartFunctionInteraction(TrackedPlayerServer player, TrackedShipServer ship, StatefulPart part)
     {
         if (part.State is not FunctionPartState)
+        {
             return true;
+        }
+
         if (!FunctionEdits.CanReach(player, ship, part))
+        {
             return false;
+        }
         // The native RPC already resolved the authenticated connection and requires
         // Walking. Its stock dispatcher has no case for a custom interactive state.
         // Preserve its native exclusive-use transition; assign only our part's UI kind.
         if (ship.StartInteracting(part.Id))
+        {
             player.SetState(
                 new PlayerState
                 {
@@ -154,22 +188,31 @@ internal static class ClientCallInteraction
                     SubPartId = 0,
                 }
             );
+        }
+
         return false;
     }
 
     private static void AfterCallPrefabConfigured(Support.PartSpec spec, PartSettings settings, GameObject prefab)
     {
         if (spec == null || FunctionStateCodec.StateType(spec.Id) == null || settings == null || prefab == null)
+        {
             return;
+        }
         // Mark before CallSizing.Configure clones the 1/2-input variant prefabs.
         FunctionSocketPositionFix.MarkSockets(prefab);
         // Native placement clones IShipPartVisual.GameObject, not the outer
         // settings prefab. Context must travel with that cloned visual branch.
         var visuals = prefab.GetComponentInChildren<IShipPartVisual>(true)?.GameObject;
         if (visuals == null)
+        {
             throw new InvalidOperationException("Function prefab has no native visual branch.");
+        }
+
         if (visuals.GetComponent<FunctionVisualContext>() == null)
+        {
             visuals.AddComponent<FunctionVisualContext>();
+        }
 
         // Copy the donor's actual textured material, not the kit's generic
         // metal fallback. Only the housing is stretched; sockets stay unit scale.
@@ -184,7 +227,10 @@ internal static class ClientCallInteraction
                 )
             );
         if (donor != null)
+        {
             settings.size = donor.size; // native quarter-grid phase, independent of generated collider bounds
+        }
+
         if (spec.Id == 62009 && donor != null)
         {
             foreach (var mesh in prefab.GetComponentsInChildren<MeshFilter>(true))
@@ -197,38 +243,56 @@ internal static class ClientCallInteraction
                     && original.TryGetComponent<MeshRenderer>(out var source)
                     && mesh.TryGetComponent<MeshRenderer>(out var target)
                 )
+                {
                     target.sharedMaterials = source.sharedMaterials;
+                }
             }
         }
         var donorMesh = donor?.part?.transform.Find(
             spec.Id == CallPartId ? "Visuals/MathGate" : "Visuals/SignalDisplay"
         );
         if (donorMesh != null)
+        {
             foreach (var mesh in prefab.GetComponentsInChildren<MeshFilter>(true))
+            {
                 if (
                     mesh.sharedMesh == donorMesh.GetComponent<MeshFilter>()?.sharedMesh
                     && mesh.TryGetComponent<MeshRenderer>(out var renderer)
                 )
+                {
                     renderer.sharedMaterials = donorMesh.GetComponent<MeshRenderer>().sharedMaterials;
+                }
+            }
+        }
+
         foreach (var screen in prefab.GetComponentsInChildren<Support.ScreenSurface>(true))
         {
             var panel = screen.transform.Find("Panel");
             if (panel != null)
+            {
                 panel.gameObject.SetActive(false);
+            }
             // The transmitter's 3D text plane clears the native curved opaque
             // screen by the measured 52.4 mm convex depth plus a small margin.
             if (spec.Id is 62006 or 62007)
+            {
                 FunctionScreens.ConfigureDefinitionFace(screen);
+            }
         }
         PartInteraction interaction = prefab.GetComponentInChildren<PartInteraction>(true);
         if (interaction == null)
+        {
             throw new InvalidOperationException("The donor has no PartInteraction component on the function prefab.");
+        }
 
         List<PartInteractionConfig> interactions =
             AccessTools.Field(typeof(PartInteraction), "interactions")?.GetValue(interaction)
             as List<PartInteractionConfig>;
         if (interactions == null)
+        {
             throw new InvalidOperationException("Call prefab interaction configuration is unavailable.");
+        }
+
         LocalizedString label = new LocalizedString("StringLocalization", "Interact");
         int interactIndex = interactions.FindIndex(item => item.type == InteractionType.Interact);
         if (interactIndex >= 0)
@@ -242,7 +306,9 @@ internal static class ClientCallInteraction
             interactions.Add(new PartInteractionConfig { type = InteractionType.Interact, localizedLabel = label });
         }
         if (spec.Id == CallPartId)
+        {
             CallSizing.Configure(settings, prefab);
+        }
     }
 
     internal static void Uninstall()
@@ -258,9 +324,16 @@ internal static class ClientCallInteraction
         // mirrors TargetingComputer: one tracked menu, without inventory.
         bool open = ContentConfigMenu.IsOpen && ContentConfigMenu.Current.Part?.State is FunctionPartState;
         if (open && !_functionMenuWasOpen)
+        {
             foreach (var inventory in Resources.FindObjectsOfTypeAll<PlayerInventoryActivator>())
+            {
                 if (inventory.isActiveAndEnabled && inventory.IsInventoryActive)
+                {
                     inventory.Close();
+                }
+            }
+        }
+
         _functionMenuWasOpen = open;
     }
 

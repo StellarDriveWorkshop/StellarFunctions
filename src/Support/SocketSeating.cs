@@ -26,10 +26,15 @@ public static class SocketSeating
     {
         var bounds = prefab == null ? null : prefab.GetComponent<ShipPartBounds>();
         if (bounds == null)
+        {
             return;
+        }
+
         FitInteractionBox(scope, prefab, bounds);
         foreach (SocketObject socket in prefab.GetComponentsInChildren<SocketObject>(true))
+        {
             Seat(scope, prefab, bounds, socket);
+        }
     }
 
     // Push a socket out of the part bounds and add a mounting pad when the
@@ -38,7 +43,10 @@ public static class SocketSeating
     public static void Seat(string scope, GameObject prefab, ShipPartBounds bounds, SocketObject socket)
     {
         if (prefab == null || bounds == null || socket == null)
+        {
             return;
+        }
+
         Vector3 dir = -prefab.transform.InverseTransformDirection(socket.transform.forward);
         Vector3 local = prefab.transform.InverseTransformPoint(socket.transform.position);
         var plan = SeatMath.Evaluate(
@@ -56,15 +64,25 @@ public static class SocketSeating
             dir.z
         );
         if (!plan.HasAxis)
+        {
             return;
+        }
+
         if (plan.AxisShift != 0f)
         {
             if (plan.Axis == 0)
+            {
                 local.x += plan.AxisShift;
+            }
             else if (plan.Axis == 1)
+            {
                 local.y += plan.AxisShift;
+            }
             else
+            {
                 local.z += plan.AxisShift;
+            }
+
             socket.transform.position = prefab.transform.TransformPoint(local);
             NativeServices.Trace(
                 scope,
@@ -72,18 +90,26 @@ public static class SocketSeating
             );
         }
         if (plan.PadDistance > 0f)
+        {
             AddPad(scope, socket, plan.PadDistance);
+        }
     }
 
     private static void AddPad(string scope, SocketObject socket, float distance)
     {
         if (socket.visualObject == null)
+        {
             return;
+        }
+
         Transform visual = socket.visualObject.transform;
         Transform pad = visual.Find("StellarFunctionsSocketPad");
         float face = FaceDepth(visual);
         if (distance - face < 0.01f)
+        {
             return;
+        }
+
         if (pad != null)
         {
             ShapePad(pad, face, distance);
@@ -109,7 +135,10 @@ public static class SocketSeating
         foreach (MeshFilter filter in visual.GetComponentsInChildren<MeshFilter>(true))
         {
             if (filter == null || filter.sharedMesh == null || filter.transform.name == "StellarFunctionsSocketPad")
+            {
                 continue;
+            }
+
             Bounds bounds = filter.sharedMesh.bounds;
             for (int i = 0; i < 8; i++)
             {
@@ -139,15 +168,27 @@ public static class SocketSeating
     private static Material PadMaterial()
     {
         if (_pad != null)
+        {
             return _pad;
+        }
+
         Material source = NativeAssets.Material("PartMetal");
         if (source == null)
+        {
             return null;
+        }
+
         _pad = new Material(source) { name = "PartMetal_SocketPad", hideFlags = HideFlags.HideAndDontSave };
         if (_pad.HasProperty("_BaseColor"))
+        {
             _pad.SetColor("_BaseColor", PadTint);
+        }
+
         if (_pad.HasProperty("_Color"))
+        {
             _pad.SetColor("_Color", PadTint);
+        }
+
         return _pad;
     }
 
@@ -168,10 +209,16 @@ public static class SocketSeating
     {
         var interactions = prefab.GetComponentInChildren<IShipPartInteractions>();
         if (interactions == null || ((IShipPartStateReactor)interactions).GameObject == null)
+        {
             return;
+        }
+
         var box = InteractionBox(interactions);
         if (box == null)
+        {
             return;
+        }
+
         Transform boxTransform = box.transform;
         Transform prefabTransform = prefab.transform;
         Vector3 centre = prefabTransform.InverseTransformPoint(boxTransform.TransformPoint(box.center));
@@ -184,7 +231,10 @@ public static class SocketSeating
             || Mathf.Abs(size.y - bounds.bounds.y) > tolerance
             || Mathf.Abs(size.z - bounds.bounds.z) > tolerance
         )
+        {
             return;
+        }
+
         Vector3 wanted = bounds.bounds + Vector3.one * 0.04f;
         box.size = ScaledSize(wanted, prefabTransform.lossyScale, boxTransform.lossyScale);
     }

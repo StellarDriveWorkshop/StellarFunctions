@@ -5,7 +5,10 @@ int checks = 0;
 void Check(bool condition, string message)
 {
     if (!condition)
+    {
         throw new Exception(message);
+    }
+
     checks++;
 }
 MoreMathCoreChecks.Run(Check);
@@ -119,7 +122,10 @@ foreach (
         ("Equals", 0d),
     }
 )
+{
     Near(FunctionEvaluator.Binary(pair.Item1, 1, 4), pair.Item2, "asymmetric " + pair.Item1);
+}
+
 Near(FunctionEvaluator.Binary("Divide", 12, 0), 0, "native division by zero");
 Near(FunctionEvaluator.Unary("SquareRoot", -1), 0, "negative sqrt");
 Near(FunctionEvaluator.Unary("Asin", 2), Math.PI / 2, "native asin clamp");

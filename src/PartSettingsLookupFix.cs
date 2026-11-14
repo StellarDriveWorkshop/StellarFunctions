@@ -33,7 +33,10 @@ internal static class PartSettingsLookupFix
     internal static void Install(string harmonyId)
     {
         if (_harmony != null)
+        {
             return;
+        }
+
         HarmonyLib.Harmony harmony = new HarmonyLib.Harmony(harmonyId);
         try
         {
@@ -42,7 +45,10 @@ internal static class PartSettingsLookupFix
                 nameof(PartSettingsProvider.GetPartSettingById)
             );
             if (lookup == null)
+            {
                 throw new MissingMethodException("PartSettingsProvider.GetPartSettingById");
+            }
+
             harmony.Patch(lookup, prefix: new HarmonyMethod(typeof(PartSettingsLookupFix), nameof(ResolveLatePart)));
         }
         catch
@@ -65,7 +71,10 @@ internal static class PartSettingsLookupFix
             AccessTools.Field(typeof(PartSettingsProvider), "_partsDict")?.GetValue(__instance)
             as Dictionary<ushort, PartSettings>;
         if (dict == null || dict.ContainsKey(id))
+        {
             return true;
+        }
+
         if (Late.TryGetValue(id, out PartSettings cached) && cached != null)
         {
             __result = cached;
@@ -81,15 +90,21 @@ internal static class PartSettingsLookupFix
             return false;
         }
         if (Time.unscaledTime < _nextScan)
+        {
             return true;
+        }
+
         _nextScan = Time.unscaledTime + ScanInterval;
         foreach (PartSettings settings in Resources.FindObjectsOfTypeAll<PartSettings>())
+        {
             if (settings != null && settings.id == id)
             {
                 Late[id] = settings;
                 __result = settings;
                 return false;
             }
+        }
+
         return true;
     }
 }

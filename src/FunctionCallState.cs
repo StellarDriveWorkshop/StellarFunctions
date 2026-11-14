@@ -46,13 +46,23 @@ public sealed record FunctionCallState : FunctionPartState, ISignalProcessorStat
         {
             int count = 0;
             for (byte id = 0; id < InputSocketIds.Length; id++)
+            {
                 if ((mask & (1 << id)) != 0)
+                {
                     count++;
+                }
+            }
+
             var sockets = new byte[count];
             int index = 0;
             for (byte id = 0; id < InputSocketIds.Length; id++)
+            {
                 if ((mask & (1 << id)) != 0)
+                {
                     sockets[index++] = InputSocketIds[id];
+                }
+            }
+
             result[mask] = sockets;
         }
         return result;

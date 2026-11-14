@@ -23,15 +23,22 @@ internal static class FunctionScreens
 
         var panel = screen.transform.Find("Panel");
         if (panel != null)
+        {
             panel.localScale = compact ? new Vector3(.28f, .075f, 1f) : new Vector3(.16f, .10f, 1f);
+        }
 
         ConfigureName(screen, label, compact ? .020f : .032f, compact ? .014f : .022f, count == 3 ? .98f : .94f);
 
         var orientation = screen.GetComponent<CallFaceOrientation>();
         if (compact && orientation == null)
+        {
             screen.gameObject.AddComponent<CallFaceOrientation>();
+        }
+
         if (!compact && orientation != null)
+        {
             UnityEngine.Object.DestroyImmediate(orientation);
+        }
     }
 
     internal static void ConfigureDefinitionFace(ScreenSurface screen) =>
@@ -41,7 +48,10 @@ internal static class FunctionScreens
     {
         var label = screen.GetComponentInChildren<TextMeshPro>(true);
         if (label == null)
+        {
             throw new InvalidOperationException("Function face has no native screen text.");
+        }
+
         return label;
     }
 

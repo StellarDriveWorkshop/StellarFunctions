@@ -35,21 +35,31 @@ internal static class PartBuild
         settings.customCreationClass = null;
         settings.mass = Mathf.Clamp(spec.Mass, 0.1f, 2000f);
         if (spec.SnappingDeclared)
+        {
             settings.snappingStyle = ResolveSnapping(spec, settings);
+        }
+
         settings.size = spec.BoundsSize;
         SetCost(spec, settings);
 
         Transform visual = PartVisuals.VisualRoot(spec, prefab);
         if (spec.ClearDonorVisual)
+        {
             PartVisuals.ClearDonorVisual(spec, visual);
+        }
+
         if (spec.Meshes != null && spec.Meshes.Count > 0)
         {
             Transform meshes = PartVisuals.MeshRoot(spec, visual);
             foreach (MeshSpec mesh in spec.Meshes)
+            {
                 PartVisuals.MeshChild(spec, meshes, mesh);
+            }
         }
         if (spec.SocketsDeclared)
+        {
             PartSockets.Build(spec, prefab);
+        }
 
         // Bounds auto-measure runs after sockets so socket facing keeps the
         // declared centre, matching the legacy ordering exactly.
@@ -65,7 +75,10 @@ internal static class PartBuild
         bounds.center = boundsCenter;
         bounds.bounds = boundsSize;
         if (spec.FitInteraction)
+        {
             PartVisuals.FitInteraction(spec, prefab, boundsCenter, boundsSize);
+        }
+
         PartVisuals.NameForHover(spec, prefab);
         NativeServices.Trace(
             spec.Asset,
@@ -83,7 +96,10 @@ internal static class PartBuild
     {
         // Hull-only snapping styles crash the build tool preview on floating parts.
         if (settings is HullPartSettings || Array.IndexOf(HullOnlySnapping, spec.Snapping) < 0)
+        {
             return spec.Snapping;
+        }
+
         NativeServices.Error(
             spec.Asset,
             "snapping style " + spec.Snapping + " only works on hull parts, using PreciseOnFloor instead"
@@ -97,7 +113,10 @@ internal static class PartBuild
     private static void SetCost(PartSpec spec, PartSettings settings)
     {
         if (spec.Cost == null || spec.Cost.Count == 0)
+        {
             return;
+        }
+
         try
         {
             var listType = typeof(List<>).MakeGenericType(ItemCatalog.ItemInstanceType);

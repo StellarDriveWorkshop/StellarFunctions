@@ -34,18 +34,27 @@ internal static class FunctionStateCodec
             ["state"] = fields,
         }.ToString(Formatting.None);
         if (json.Length > (privateData ? 524288 : 65536))
+        {
             throw new InvalidDataException("Function state envelope exceeds its size limit.");
+        }
+
         return json;
     }
 
     internal static FunctionPartState Decode(string json, Type expected, bool privateData)
     {
         if (json == null || json.Length > (privateData ? 524288 : 65536))
+        {
             throw new InvalidDataException("Function state envelope exceeds its size limit.");
+        }
+
         JObject root = NativeFunctionCompiler.ParseObject(json, privateData ? 524288 : 65536);
         int? schema = (int?)root["schema"];
         if (schema != Schema && schema != SizedCallSchema)
+        {
             throw new InvalidDataException("Unsupported function state schema; refusing to discard saved fields.");
+        }
+
         Type type =
             (string)root["kind"] == "call" ? typeof(FunctionCallState)
             : (string)root["kind"] == "param" ? typeof(FunctionParamState)
@@ -53,9 +62,14 @@ internal static class FunctionStateCodec
             : (string)root["kind"] == "transmitter" ? typeof(FunctionTransmitterState)
             : null;
         if (type == null || type != expected || root["state"] is not JObject fields)
+        {
             throw new InvalidDataException("Function state kind does not match its content part.");
+        }
+
         if (schema == SizedCallSchema && (type != typeof(FunctionCallState) || fields.Property("InputCount") == null))
+        {
             throw new InvalidDataException("Sized Call state is missing its input count or has an invalid kind.");
+        }
         // Record initializers generate fresh identities for newly built parts.
         // Missing saved fields must never accidentally take that construction
         // path and silently replace an existing definition or instance.
@@ -69,7 +83,10 @@ internal static class FunctionStateCodec
             || !Guid.TryParse((string)fields[identity], out Guid stable)
             || stable == Guid.Empty
         )
+        {
             throw new InvalidDataException("Function state is missing its saved identity.");
+        }
+
         string[] required =
             type == typeof(FunctionParamState) ? new[] { "Name", "Index", "DefaultValue" }
             : type == typeof(FunctionReturnState) ? new[] { "Name", "Sources" }
@@ -84,9 +101,15 @@ internal static class FunctionStateCodec
                         && (fields.Property("RuntimeJson") == null || fields.Property("StructureKey") == null)
                 )
         )
+        {
             throw new InvalidDataException("Function state is missing required saved fields.");
+        }
+
         if (fields.Property("Broadcast") != null && fields["Broadcast"].Type != JTokenType.Boolean)
+        {
             throw new InvalidDataException("Invalid Return broadcast field.");
+        }
+
         if (
             type == typeof(FunctionCallState)
             && fields.Property("InputCount") != null
@@ -102,7 +125,10 @@ internal static class FunctionStateCodec
                 || inputCount > 3
             )
         )
+        {
             throw new InvalidDataException("Invalid Call input count.");
+        }
+
         if (!privateData)
         {
             fields.Remove("RuntimeJson");
@@ -136,25 +162,34 @@ internal static class FunctionStateCodec
             || (required && string.IsNullOrWhiteSpace(value))
             || value.Any(char.IsControl)
         )
+        {
             throw new InvalidDataException("Invalid function text field.");
+        }
     }
 
     private static void OptionalId(string value)
     {
         Text(value ?? "", 64);
         if (!string.IsNullOrEmpty(value) && (!Guid.TryParse(value, out Guid id) || id == Guid.Empty))
+        {
             throw new InvalidDataException("Invalid function identity reference.");
+        }
     }
 
     internal static void Validate(FunctionPartState state)
     {
         if (state == null || state.StableId == Guid.Empty)
+        {
             throw new InvalidDataException("Function part has an empty identity.");
+        }
+
         if (state is FunctionParamState p)
         {
             Text(p.Name, 64, true);
             if (p.Index < 1 || p.Index > 3 || (p.DefaultValue.HasValue && !double.IsFinite(p.DefaultValue.Value)))
+            {
                 throw new InvalidDataException("Invalid Param fields.");
+            }
         }
         else if (state is FunctionReturnState r)
         {
@@ -183,7 +218,10 @@ internal static class FunctionStateCodec
             Text(c.Input2Label, 128);
             Text(c.ResizeFeedback, 128);
             if (c.InputCount < 1 || c.InputCount > 3)
+            {
                 throw new InvalidDataException("Invalid Call input count.");
+            }
+
             if (
                 c.ListeningMask > 7
                 || !double.IsFinite(c.Output)
@@ -193,7 +231,10 @@ internal static class FunctionStateCodec
                 || c.RuntimeJson == null
                 || c.RuntimeJson.Length > 262144
             )
+            {
                 throw new InvalidDataException("Invalid Call runtime fields.");
+            }
+
             var history = NativeFunctionCompiler.ParseObject(c.RuntimeJson, 262144);
             if (
                 history.Count > 4096
@@ -205,7 +246,9 @@ internal static class FunctionStateCodec
                         || !double.IsFinite((double)p.Value)
                     )
             )
+            {
                 throw new InvalidDataException("Invalid Call history.");
+            }
         }
     }
 }

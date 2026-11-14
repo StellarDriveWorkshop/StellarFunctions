@@ -28,12 +28,17 @@ internal static class BroadcastMenuLifecycleChecks
     {
         bool isReturn = part.Part.State is FunctionReturnState;
         if (!isReturn && part.Part.State is not FunctionTransmitterState)
+        {
             throw new ArgumentException(
                 "Broadcast menu checks require an open Return or Transmitter part.",
                 nameof(part)
             );
+        }
+
         if (isReturn)
+        {
             part.Part.State = ((FunctionReturnState)part.Part.State) with { Broadcast = false };
+        }
 
         var edits = (IDictionary)AccessTools.Field(Editor, "BroadcastEdits").GetValue(null);
         edits.Clear();
@@ -73,11 +78,13 @@ internal static class BroadcastMenuLifecycleChecks
             "first checkbox click sends an action and locks duplicates " + part.Def.Id
         );
         if (isReturn)
+        {
             Check(
                 check,
                 !((FunctionReturnState)part.Part.State).Broadcast,
                 "optimistic Return checkbox click leaves part state host-owned"
             );
+        }
 
         long acknowledgedSequence = editSequence + 1;
         sequenceField.SetValue(null, acknowledgedSequence);
@@ -146,12 +153,15 @@ internal static class BroadcastMenuLifecycleChecks
         toggle = root.GetComponentsInChildren<Toggle>(true).Single(t => t.name == "Broadcast checkbox");
         string disabledReason = isReturn ? "Add a Function Transmitter to this ship/base to broadcast." : null;
         if (isReturn)
+        {
             Check(
                 check,
                 !toggle.interactable && root.GetComponentsInChildren<TMP_Text>(true).Any(t => t.text == disabledReason),
                 "ineligible Return snapshot disables the checkbox with an explicit reason"
             );
+        }
         else
+        {
             Check(
                 check,
                 !toggle.interactable
@@ -159,6 +169,7 @@ internal static class BroadcastMenuLifecycleChecks
                         .Any(t => t.text.Contains("Add a Function Transmitter")),
                 "ineligible Transmitter snapshot disables the checkbox with an explicit reason"
             );
+        }
 
         long enabledSequence = disabledSequence + 1;
         sequenceField.SetValue(null, enabledSequence);
@@ -180,11 +191,13 @@ internal static class BroadcastMenuLifecycleChecks
             "restored eligibility re-enables checkbox and label without reopening " + part.Def.Id
         );
         if (isReturn)
+        {
             Check(
                 check,
                 !((FunctionReturnState)part.Part.State).Broadcast,
                 "directory eligibility updates do not pick up or mutate Return state"
             );
+        }
     }
 
     private static string Response(

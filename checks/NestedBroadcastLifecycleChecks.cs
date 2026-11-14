@@ -234,9 +234,15 @@ internal static class NestedBroadcastLifecycleChecks
         {
             Method(runtime, "Reset").Invoke(null, null);
             foreach (SocketConnection edge in edges)
+            {
                 connections.SignalConnectionGroups.OnConnectionDelete(edge);
+            }
+
             foreach (var pair in saved)
+            {
                 pair.Value.Restore();
+            }
+
             oldCatalog.Restore();
             UnityEngine.Object.DestroyImmediate(services);
         }
@@ -322,14 +328,19 @@ internal static class NestedBroadcastLifecycleChecks
             {
                 var entries = new List<DictionaryEntry>();
                 foreach (DictionaryEntry entry in dictionary)
+                {
                     entries.Add(entry);
+                }
+
                 _entries = entries.ToArray();
             }
             else
+            {
                 _items =
                     _value is IEnumerable enumerable && _value is not string
                         ? enumerable.Cast<object>().ToArray()
                         : null;
+            }
         }
 
         internal void Restore()
@@ -347,7 +358,9 @@ internal static class NestedBroadcastLifecycleChecks
                     .GetMethods()
                     .First(m => m.Name == "Add" && m.GetParameters().Length == 2);
                 foreach (DictionaryEntry entry in _entries)
+                {
                     add.Invoke(_value, new[] { entry.Key, entry.Value });
+                }
             }
             else
             {
@@ -356,10 +369,14 @@ internal static class NestedBroadcastLifecycleChecks
                     .GetMethods()
                     .First(m => m.Name == "Add" && m.GetParameters().Length == 1);
                 foreach (object item in _items)
+                {
                     add.Invoke(_value, new[] { item });
+                }
             }
             if (!_field.IsInitOnly)
+            {
                 _field.SetValue(null, _value);
+            }
         }
     }
 }

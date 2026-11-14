@@ -29,9 +29,15 @@ public sealed class FailureBudget
         errors++;
         _errors[partId] = errors;
         if (errors == 1)
+        {
             return Outcome.First;
+        }
+
         if (errors == _muteAfter)
+        {
             return Outcome.Muted;
+        }
+
         return Outcome.None;
     }
 

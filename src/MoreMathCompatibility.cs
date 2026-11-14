@@ -24,10 +24,16 @@ internal static class MoreMathCompatibility
     internal static void Install()
     {
         if (_harmony != null)
+        {
             return;
+        }
+
         var assembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name == "MoreMath");
         if (assembly == null)
+        {
             return;
+        }
+
         try
         {
             using var sha = SHA256.Create();
@@ -37,13 +43,19 @@ internal static class MoreMathCompatibility
                 assembly.ManifestModule.ModuleVersionId != new Guid("f56344e8-7c57-4436-9dd9-41c146e350ae")
                 || hash != ReviewedSha256
             )
+            {
                 throw new NotSupportedException("Requires the reviewed MoreMath 1.3.0 build.");
+            }
+
             var prefix = AccessTools.Method(
                 assembly.GetType("MoreMath.SignalConnectionsServerUpdaterPatch", true),
                 "Prefix"
             );
             if (prefix == null || prefix.ReturnType != typeof(bool))
+            {
                 throw new MissingMethodException("MoreMath dispatcher prefix");
+            }
+
             _harmony = new HarmonyLib.Harmony("stellar.functions.moremath-1.3");
             _harmony.Patch(
                 prefix,
@@ -78,7 +90,10 @@ internal static class MoreMathCompatibility
             )
             .ToArray();
         if (ships.Length != 1 || parts.Length != 1 || reads.Length != 1)
+        {
             throw new NotSupportedException("MoreMath dispatcher IL changed.");
+        }
+
         code.InsertRange(
             reads[0].i + 1,
             new[]

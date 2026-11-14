@@ -125,7 +125,10 @@ internal sealed class ScreenProfileStats
         {
             var bucket = (ScreenProfileBucket)i;
             if (i > 0)
+            {
                 text.Append(',');
+            }
+
             text.Append("\n    {\"name\": \"")
                 .Append(BucketName(bucket))
                 .Append("\", \"calls\": ")
@@ -144,7 +147,10 @@ internal sealed class ScreenProfileStats
         for (int i = 0; i < (int)ScreenProfileExit.ExitCount; i++)
         {
             if (i > 0)
+            {
                 text.Append(", ");
+            }
+
             string name = ((ScreenProfileExit)i).ToString();
             text.Append('"').Append(char.ToLowerInvariant(name[0])).Append(name[1..]).Append("\": ").Append(_exits[i]);
         }

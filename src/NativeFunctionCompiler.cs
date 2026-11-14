@@ -61,7 +61,10 @@ internal sealed class NativeFunctionCompiler
     {
         int result = Input(new EntityPartSocket(_definition.Address.ShipId, _definition.Address.PartId, 0));
         if (result < 0)
+        {
             throw new FunctionFault("UNWIRED RETURN");
+        }
+
         string structure = string.Join(
             ";",
             _nodes.Select(n =>
@@ -80,7 +83,10 @@ internal sealed class NativeFunctionCompiler
         );
         string metadata = _identities.ToString(Formatting.None);
         if (metadata.Length > 65536)
+        {
             throw new FunctionFault("IDENTITY LIMIT");
+        }
+
         _definition.State = _definition.State with { NodeIdentities = metadata };
         return new FunctionGraph(
             _definition.State.DefinitionId,
@@ -104,7 +110,10 @@ internal sealed class NativeFunctionCompiler
         {
             string label = pending.Dequeue();
             if (!seen.Add(label))
+            {
                 continue;
+            }
+
             JToken declared = _sources["channels"]?[label];
             if (declared != null)
             {
@@ -112,36 +121,53 @@ internal sealed class NativeFunctionCompiler
                 continue;
             }
             foreach (TrackedShipServer ship in _ships.Ships.Where(s => _root(s.Id) == _definition.Assembly))
-            foreach (StatefulPart part in ship.StatefulParts)
-                if (
-                    part.State is SignalTransmitterState transmitter
-                    && string.Equals(transmitter.Channel, label, StringComparison.Ordinal)
-                )
+            {
+                foreach (StatefulPart part in ship.StatefulParts)
                 {
-                    var localLabels = new HashSet<string>(StringComparer.Ordinal);
-                    var localEmitters = new HashSet<EntityPartSocket>();
-                    var localClaims = new HashSet<PartContext>();
-                    Gather(new EntityPartSocket(ship.Id, part.Id, 0), localEmitters, localLabels, localClaims);
-                    // A same-name receiver elsewhere is not part of this body.
-                    // Follow writer components (or explicit label aliases), not
-                    // every physical receiver in the ship's global channel map.
                     if (
-                        localEmitters.Count == 0
-                        && !localLabels.Any(other => !string.Equals(other, label, StringComparison.Ordinal))
+                        part.State is SignalTransmitterState transmitter
+                        && string.Equals(transmitter.Channel, label, StringComparison.Ordinal)
                     )
-                        continue;
-                    emitters.UnionWith(localEmitters);
-                    _definition.Claims.UnionWith(localClaims);
-                    foreach (string other in localLabels)
-                        if (!seen.Contains(other))
-                            pending.Enqueue(other);
+                    {
+                        var localLabels = new HashSet<string>(StringComparer.Ordinal);
+                        var localEmitters = new HashSet<EntityPartSocket>();
+                        var localClaims = new HashSet<PartContext>();
+                        Gather(new EntityPartSocket(ship.Id, part.Id, 0), localEmitters, localLabels, localClaims);
+                        // A same-name receiver elsewhere is not part of this body.
+                        // Follow writer components (or explicit label aliases), not
+                        // every physical receiver in the ship's global channel map.
+                        if (
+                            localEmitters.Count == 0
+                            && !localLabels.Any(other => !string.Equals(other, label, StringComparison.Ordinal))
+                        )
+                        {
+                            continue;
+                        }
+
+                        emitters.UnionWith(localEmitters);
+                        _definition.Claims.UnionWith(localClaims);
+                        foreach (string other in localLabels)
+                        {
+                            if (!seen.Contains(other))
+                            {
+                                pending.Enqueue(other);
+                            }
+                        }
+                    }
                 }
+            }
         }
         // Duplicate sockets are removed before judging competing producers.
         if (emitters.Count + externals.Distinct().Count() > 1)
+        {
             throw new FunctionFault("MULTIPLE SOURCES");
+        }
+
         if (externals.Count > 0)
+        {
             return External(externals[0]);
+        }
+
         return emitters.Count == 0 ? -1 : Node(emitters.Single());
     }
 
@@ -156,7 +182,10 @@ internal sealed class NativeFunctionCompiler
         var seen = new HashSet<EntityPartSocket>();
         pending.Enqueue(start);
         if (!_connections.TryGetSignalConnectionGroupWithSocket(start, out var group))
+        {
             return;
+        }
+
         SocketConnection[] edges = group
             .AllConnections.Where(e => e.Type != SocketConnectionType.RelayedByTransmitter)
             .ToArray();
@@ -164,34 +193,56 @@ internal sealed class NativeFunctionCompiler
         {
             EntityPartSocket current = pending.Dequeue();
             if (!seen.Add(current))
+            {
                 continue;
+            }
+
             if (++_visited > 4096)
+            {
                 throw new FunctionFault("DISCOVERY LIMIT");
+            }
+
             if (_root(current.EntityId) != _definition.Assembly)
+            {
                 throw new FunctionFault("OUTSIDE ASSEMBLY");
+            }
+
             if (
                 !_ships.TryGetTrackedShip(current.EntityId, out TrackedShipServer ship)
                 || !ship.TryGetStatefulPart(current.Socket.PartId, out StatefulPart part)
             )
+            {
                 throw new FunctionFault("MISSING PART");
+            }
+
             if (part.State is SignalTransmitterState transmitter && transmitter.Channel != null)
             {
                 labels.Add(transmitter.Channel);
                 if (_sources["channels"]?[transmitter.Channel] == null)
+                {
                     (labelClaims ?? _definition.Claims).Add(current.PartContext);
+                }
             }
             byte id = current.Socket.SocketId;
             if (
                 (part.State is ISignalEmitterState emitter && emitter.EmissionSockets.Contains(id))
                 || (part.State is ISignalProcessorState processor && processor.EmissionSockets.Contains(id))
             )
+            {
                 emitters.Add(current);
+            }
+
             foreach (SocketConnection edge in edges)
             {
                 if (edge.SocketA.HasValue && edge.SocketA.Value.Equals(current) && edge.SocketB.HasValue)
+                {
                     pending.Enqueue(edge.SocketB.Value);
+                }
+
                 if (edge.SocketB.HasValue && edge.SocketB.Value.Equals(current) && edge.SocketA.HasValue)
+                {
                     pending.Enqueue(edge.SocketA.Value);
+                }
             }
         }
     }
@@ -200,27 +251,44 @@ internal sealed class NativeFunctionCompiler
     {
         PartContext context = output.PartContext;
         if (_compiled.TryGetValue(context, out int existing))
+        {
             return existing;
+        }
+
         TrackedShipServer ship = _ships.GetShip(context.ShipId);
         if (ship == null || !ship.TryGetStatefulPart(context.PartId, out StatefulPart part))
+        {
             throw new FunctionFault("MISSING PART");
+        }
+
         JToken sensor = _sources["parts"]?[Address(context)];
         if (sensor != null)
+        {
             return External(DeclaredSource(sensor));
+        }
         // IDs below our allocation are not evidence of stock semantics. Other
         // mods reuse native state records while evaluating different operations.
         // These exact stock asset identities were inspected in the pinned game.
         if (part.State is not FunctionPartState && !IsStockOperation(part))
+        {
             throw new FunctionFault("DECLARE EXTERNAL SOURCE");
+        }
+
         if (
             part.State is VelocitySensorState
             || part.State is AngularVelSensorState
             || part.State is GasSensorState
             || part.State is FluidTankState
         )
+        {
             throw new FunctionFault("DECLARE EXTERNAL SOURCE");
+        }
+
         if (_nodes.Count >= 256)
+        {
             throw new FunctionFault("BODY LIMIT");
+        }
+
         int index = _nodes.Count;
         _nodes.Add(null);
         _compiled.Add(context, index);
@@ -235,11 +303,14 @@ internal sealed class NativeFunctionCompiler
             node = new FunctionNode(nodeId, FunctionOp.Parameter, reference: p.Id);
         }
         else if (part.State is ConstantState constant)
+        {
             node = new FunctionNode(nodeId, FunctionOp.Constant, initial: constant.ConstantValue);
+        }
         else if (part.State is MathGateState binary)
         {
             int operation = (byte)binary.Operation;
             if (operation >= 10 && operation <= 30 && MoreMathCompatibility.Ready)
+            {
                 node = new FunctionNode(
                     nodeId,
                     FunctionOp.MoreMathBinary,
@@ -247,6 +318,7 @@ internal sealed class NativeFunctionCompiler
                     MoreMathOperations.BinaryName(operation),
                     initial: operation
                 );
+            }
             else
             {
                 string op = binary.Operation.ToString();
@@ -258,6 +330,7 @@ internal sealed class NativeFunctionCompiler
         {
             int operation = (byte)unary.Operation;
             if (operation >= 10 && operation <= 17 && MoreMathCompatibility.Ready)
+            {
                 node = new FunctionNode(
                     nodeId,
                     FunctionOp.MoreMathUnary,
@@ -265,32 +338,48 @@ internal sealed class NativeFunctionCompiler
                     MoreMathOperations.UnaryName(operation),
                     initial: operation
                 );
+            }
             else
             {
                 string op = unary.Operation.ToString();
                 if (op != "Delta")
+                {
                     FunctionEvaluator.Unary(op, 1);
+                }
+
                 node = new FunctionNode(nodeId, FunctionOp.Unary, new[] { Read(0) }, op);
             }
         }
         else if (part.State is MemoryRegisterState memory)
+        {
             node = new FunctionNode(nodeId, FunctionOp.Memory, new[] { Read(0), Read(1) }, initial: memory.Value);
+        }
         else if (part.State is DeltaState)
+        {
             node = new FunctionNode(nodeId, FunctionOp.RawDelta, new[] { Read(0) });
+        }
         else if (part.State is FunctionCallState call)
         {
             if (!Guid.TryParse(call.SelectedFunctionId, out Guid target))
+            {
                 throw new FunctionFault("MISSING FUNCTION");
+            }
+
             var bindings = new[] { ParseId(call.Slot0), ParseId(call.Slot1), ParseId(call.Slot2) };
             byte wired = 0;
             int[] inputs = { -1, -1, -1 };
             for (byte i = 0; i < call.InputCount; i++)
+            {
                 if (bindings[i] != Guid.Empty)
                 {
                     inputs[i] = Read(i);
                     if (inputs[i] >= 0)
+                    {
                         wired |= (byte)(1 << i);
+                    }
                 }
+            }
+
             node = new FunctionNode(
                 nodeId,
                 FunctionOp.Nested,
@@ -301,7 +390,10 @@ internal sealed class NativeFunctionCompiler
             );
         }
         else
+        {
             throw new FunctionFault("UNSUPPORTED NODE");
+        }
+
         _nodes[index] = node;
         return index;
     }
@@ -316,7 +408,9 @@ internal sealed class NativeFunctionCompiler
             || !_ships.TryGetTrackedShip(ship, out TrackedShipServer target)
             || !target.TryGetStatefulPart(part, out StatefulPart source)
         )
+        {
             throw new FunctionFault("MISSING SOURCE");
+        }
         // Emitter reads may observe a real mod sensor using a stock Constant state;
         // this is not permission to clone an unknown mod's internal operations.
         bool supported =
@@ -334,7 +428,10 @@ internal sealed class NativeFunctionCompiler
             : source.State is ISignalProcessorState processor ? processor.EmissionSockets
             : Array.Empty<byte>();
         if (!supported || !sockets.Contains(socket))
+        {
             throw new FunctionFault("UNSUPPORTED SOURCE");
+        }
+
         return new EntityPartSocket(ship, part, socket);
     }
 
@@ -363,9 +460,15 @@ internal sealed class NativeFunctionCompiler
         );
         int found = _nodes.FindIndex(n => n != null && n.Op == FunctionOp.External && n.Reference == id);
         if (found >= 0)
+        {
             return found;
+        }
+
         if (_nodes.Count >= 256)
+        {
             throw new FunctionFault("BODY LIMIT");
+        }
+
         _definition.External[id] = socket;
         _nodes.Add(new FunctionNode(id, FunctionOp.External, reference: id));
         return _nodes.Count - 1;
@@ -374,13 +477,19 @@ internal sealed class NativeFunctionCompiler
     private Guid Identity(PartContext address, IStatefulPartState state)
     {
         if (state is FunctionPartState custom)
+        {
             return custom.StableId;
+        }
+
         string key = Address(address);
         string value = (string)_identities[key];
         if (value != null)
         {
             if (!Guid.TryParse(value, out Guid known) || known == Guid.Empty)
+            {
                 throw new FunctionFault("BAD NODE ID");
+            }
+
             return known;
         }
         Guid id = Guid.NewGuid();
@@ -398,7 +507,10 @@ internal sealed class NativeFunctionCompiler
     internal static JObject ParseObject(string json, int max)
     {
         if (json == null || json.Length > max)
+        {
             throw new FunctionFault("METADATA LIMIT");
+        }
+
         try
         {
             using var reader = new JsonTextReader(new System.IO.StringReader(json)) { MaxDepth = 16 };

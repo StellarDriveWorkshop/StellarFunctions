@@ -53,7 +53,10 @@ internal static class FunctionEditor
             || string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase)
             || string.Equals(flag, "yes", StringComparison.OrdinalIgnoreCase)
         )
+        {
             return true;
+        }
+
         try
         {
             string path = typeof(FunctionEditor).Assembly.Location;
@@ -107,21 +110,28 @@ internal static class FunctionEditor
     {
         var rows = AccessTools.Method(typeof(ContentConfigMenu), "A", Type.EmptyTypes);
         if (rows == null)
+        {
             throw new MissingMethodException("Pinned configuration row builder");
+        }
+
         harmony.Patch(rows, prefix: new HarmonyMethod(typeof(FunctionEditor), nameof(UseCustomRows)));
         // Construct/hide the donor presentation in the same call that opens it,
         // before a native frame can expose its inventory while config sync waits.
         foreach (string name in new[] { "TryAppend", "TryAppendClient" })
+        {
             harmony.Patch(
                 AccessTools.Method(typeof(ContentConfigMenu), name),
                 postfix: new HarmonyMethod(typeof(FunctionEditor), nameof(MenuAppended))
             );
+        }
     }
 
     private static void MenuAppended(bool __result)
     {
         if (__result && ContentConfigMenu.Current.Part?.State is FunctionPartState)
+        {
             Tick();
+        }
     }
 
     private static bool UseCustomRows() => ContentConfigMenu.Current.Part?.State is not FunctionPartState;
@@ -132,14 +142,20 @@ internal static class FunctionEditor
         if (!ContentConfigMenu.IsOpen)
         {
             if (_target != Guid.Empty)
+            {
                 Reset();
+            }
+
             return;
         }
         ContentPart part = ContentConfigMenu.Current;
         if (part.Part?.State is not FunctionPartState state)
         {
             if (_target != Guid.Empty)
+            {
                 Reset();
+            }
+
             return;
         }
         if (state.StableId != _target)
@@ -167,7 +183,10 @@ internal static class FunctionEditor
             && oldReturn.Name == liveReturn.Name
             && oldReturn.Sources == liveReturn.Sources
         )
+        {
             _original = oldReturn with { Broadcast = liveReturn.Broadcast };
+        }
+
         FunctionDirectory.Poll(part);
         if (!ReferenceEquals(_seenDirectory, FunctionDirectory.Current) && CanRebuild())
         {
@@ -280,15 +299,24 @@ internal static class FunctionEditor
             }
         }
         if (_root == null && Layout.GetValue(null) is MenuLayout layout && layout.Grid != null)
+        {
             Build(part, layout);
+        }
+
         ResizePanel();
         FitDropdown(_dropdown);
         FitDropdown(_sourceDropdown);
         UpdateBroadcastControls();
         if (_feedback != null)
+        {
             _feedback.text = _notice;
+        }
+
         if (_syncText != null)
+        {
             _syncText.text = FunctionDirectory.Status == "Ready" ? "Synced with server" : FunctionDirectory.Status;
+        }
+
         if (_statusText != null)
         {
             _statusText.text = state is FunctionReturnState ret ? "Status: " + ret.Status : "Template argument";
@@ -302,7 +330,10 @@ internal static class FunctionEditor
     internal static void Reset()
     {
         if (_root != null)
+        {
             UnityEngine.Object.Destroy(_root);
+        }
+
         _requestedInputCount = 0;
         _inputCountRequestedAt = 0;
         _root = null;
@@ -341,7 +372,9 @@ internal static class FunctionEditor
         // The old config labels and custom fields must not both occupy this space.
         var side = Side.GetValue(null) as GameObject;
         if (side == null)
+        {
             return;
+        }
         // Keep the frame inside this native menu's lifetime, center relative to
         // its full canvas, and remove the donor's trash/inventory decoration.
         var menuRoot = ContentConfigMenu.Root.transform;
@@ -354,31 +387,53 @@ internal static class FunctionEditor
             menuRect.localScale = Vector3.one;
         }
         foreach (Transform child in menuRoot.Cast<Transform>().ToArray())
+        {
             if (child != side.transform)
+            {
                 child.gameObject.SetActive(false);
+            }
+        }
+
         _font = (layout.Title as TMP_Text)?.font ?? Support.Screens.Font(null);
         var panel = (RectTransform)side.transform;
         foreach (var controller in panel.GetComponents<LayoutGroup>())
+        {
             UnityEngine.Object.DestroyImmediate(controller);
+        }
+
         var fitter = panel.GetComponent<ContentSizeFitter>();
         if (fitter != null)
+        {
             UnityEngine.Object.DestroyImmediate(fitter);
+        }
+
         panel.anchorMin = panel.anchorMax = new Vector2(.5f, .5f);
         panel.pivot = new Vector2(.5f, .5f);
         panel.anchoredPosition = Vector2.zero;
         ResizePanel();
         foreach (var text in side.GetComponentsInChildren<TMP_Text>(true))
+        {
             if (!text.transform.IsChildOf(layout.Grid))
+            {
                 text.gameObject.SetActive(false);
+            }
+        }
+
         foreach (Transform child in layout.Grid.Cast<Transform>().ToArray())
+        {
             UnityEngine.Object.DestroyImmediate(child.gameObject);
+        }
+
         var grid = (RectTransform)layout.Grid;
         grid.anchorMin = Vector2.zero;
         grid.anchorMax = Vector2.one;
         grid.offsetMin = new Vector2(40, 34);
         grid.offsetMax = new Vector2(-40, -34);
         foreach (var controller in grid.GetComponents<LayoutGroup>())
+        {
             UnityEngine.Object.DestroyImmediate(controller);
+        }
+
         _root = Node(grid, "Function fields", typeof(VerticalLayoutGroup));
         var rootRect = (RectTransform)_root.transform;
         rootRect.anchorMin = Vector2.zero;
@@ -403,9 +458,13 @@ internal static class FunctionEditor
         _body = SourceScroll(_root.transform);
         _bodyScroll = _body.parent.parent.GetComponent<ScrollRect>();
         if (_original is FunctionCallState current)
+        {
             BuildCall(part, current);
+        }
         else if (_original is FunctionTransmitterState)
+        {
             BuildTransmitter(part);
+        }
         else
         {
             _statusText = Label(_body, "");
@@ -444,7 +503,9 @@ internal static class FunctionEditor
                         }
                     );
                     if (_advanced)
+                    {
                         BuildExternalSources(part);
+                    }
                 }
             }
             Button(
@@ -514,13 +575,18 @@ internal static class FunctionEditor
     {
         _notice = message;
         if (_feedback != null)
+        {
             _feedback.text = message;
+        }
     }
 
     private static void ResizePanel()
     {
         if (Side.GetValue(null) is not GameObject side || ContentConfigMenu.Root == null)
+        {
             return;
+        }
+
         var canvas = side.GetComponentInParent<Canvas>();
         var rect = canvas != null ? canvas.rootCanvas.transform as RectTransform : null;
         float width = rect != null && rect.rect.width > 0 ? rect.rect.width : 1920;
@@ -536,7 +602,10 @@ internal static class FunctionEditor
     private static FunctionDirectory.Snapshot DirectoryView(ContentPart part)
     {
         if (FunctionDirectory.Current != null)
+        {
             return FunctionDirectory.Current;
+        }
+
         var ships = AssemblyShips(part).ToArray();
         var entries = ships
             .SelectMany(s => s.StatefulParts)
@@ -584,7 +653,9 @@ internal static class FunctionEditor
             requested =>
             {
                 if (entry == null)
+                {
                     return;
+                }
                 // A focused draft can defer panel reconstruction. Resolve the newest
                 // revision on click rather than closing over the old descriptor.
                 var latest = FunctionDirectory.Current?.Entries.FirstOrDefault(e => e.Id == entry.Id) ?? entry;
@@ -617,7 +688,9 @@ internal static class FunctionEditor
         status.textWrappingMode = TextWrappingModes.Normal;
         status.GetComponent<LayoutElement>().preferredHeight = 52;
         if (entry != null)
+        {
             BroadcastControls.Add((toggle, entry.Id, status));
+        }
     }
 
     private static void UpdateBroadcastControls()
@@ -625,7 +698,10 @@ internal static class FunctionEditor
         foreach (var binding in BroadcastControls)
         {
             if (binding.Toggle == null)
+            {
                 continue;
+            }
+
             var current = FunctionDirectory.Current?.Entries.FirstOrDefault(e => e.Id == binding.Id);
             if (BroadcastEdits.TryGetValue(binding.Id, out var edit))
             {
@@ -659,7 +735,10 @@ internal static class FunctionEditor
                 }
             }
             if (current == null)
+            {
                 continue;
+            }
+
             binding.Toggle.SetIsOnWithoutNotify(current.Broadcast);
             bool eligible = FunctionDirectory.Current.Eligible && current.Status == "TEMPLATE";
             SetBroadcastAvailability(binding.Toggle, eligible);
@@ -684,7 +763,10 @@ internal static class FunctionEditor
                 + " invalid"
         );
         if (FunctionDirectory.Current == null)
+        {
             Label(_body, "Local preview · syncing with server…");
+        }
+
         foreach (var entry in data.Entries)
         {
             var functionName = Label(_body, entry.Name);
@@ -700,9 +782,15 @@ internal static class FunctionEditor
             BroadcastControl(_body, part, entry);
         }
         if (data.Entries.Length == 0)
+        {
             Label(_body, "No Return blocks loaded on this structure yet.");
+        }
+
         if (data.Truncated)
+        {
             Label(_body, "Showing the first 256 definitions.");
+        }
+
         Label(_body, "F / Esc: close");
     }
 
@@ -712,7 +800,9 @@ internal static class FunctionEditor
         explanation.textWrappingMode = TextWrappingModes.Normal;
         explanation.GetComponent<LayoutElement>().preferredHeight = 60;
         foreach (string section in new[] { "channels", "parts" })
+        {
             if (_sources[section] is JObject entries)
+            {
                 foreach (JProperty entry in entries.Properties().ToArray())
                 {
                     string key = entry.Name,
@@ -727,6 +817,9 @@ internal static class FunctionEditor
                         }
                     );
                 }
+            }
+        }
+
         if (_options.Count == 0)
         {
             Label(_body, "No supported source loaded in this rotor assembly.");
@@ -751,7 +844,10 @@ internal static class FunctionEditor
             {
                 var filtered = FilteredSources();
                 if (i < 1 || i > filtered.Length)
+                {
                     return;
+                }
+
                 _sourceIndex = filtered[i - 1];
                 UpdateSourceDetails();
             }
@@ -832,7 +928,10 @@ internal static class FunctionEditor
     private static void UpdateSourceChoices()
     {
         if (_sourceDropdown == null)
+        {
             return;
+        }
+
         _sourceDropdown.Hide();
         var filtered = FilteredSources();
         _sourceDropdown.ClearOptions();
@@ -846,7 +945,10 @@ internal static class FunctionEditor
         _sourceDropdown.SetValueWithoutNotify(selected + 1);
         _sourceDropdown.RefreshShownValue();
         if (selected < 0 && filtered.Length > 0)
+        {
             _sourceDropdown.captionText.text = "Choose a matching source…";
+        }
+
         _sourceDropdown.interactable = filtered.Length > 0;
         UpdateSourceDetails();
     }
@@ -855,7 +957,10 @@ internal static class FunctionEditor
     {
         var label = _root.GetComponentsInChildren<TMP_Text>().FirstOrDefault(t => t.name == "Selected source details");
         if (label == null)
+        {
             return;
+        }
+
         if (_options.Count == 0 || _sourceIndex < 0 || _sourceIndex >= _options.Count)
         {
             label.text = "Selected: (none)";
@@ -870,7 +975,9 @@ internal static class FunctionEditor
         // A pending snapshot can rebuild the checkbox while it is disabled.
         // Native Selectable re-enables its image, but does not recolor our label.
         foreach (var label in toggle.GetComponentsInChildren<TMP_Text>())
+        {
             label.color = enabled ? new Color(.75f, .9f, .95f) : Color.gray;
+        }
     }
 
     private static Toggle Checkbox(Transform parent, string caption, bool value, bool enabled, Action<bool> change)
@@ -985,6 +1092,7 @@ internal static class FunctionEditor
             );
         }
         else
+        {
             Button(
                 _body,
                 "Reset input mapping and Memory…",
@@ -997,9 +1105,13 @@ internal static class FunctionEditor
                         _notice = "Reset requested.";
                     }
                     else
+                    {
                         _notice = "Confirm reset: cables stay; input meanings and Memory reset.";
+                    }
                 }
             );
+        }
+
         Label(_body, "F / Esc: close");
     }
 
@@ -1051,7 +1163,10 @@ internal static class FunctionEditor
             button.onClick.AddListener(() =>
             {
                 if (chosen == call.InputCount || _requestedInputCount != 0)
+                {
                     return;
+                }
+
                 string payload = CallSizing.Payload(call, chosen);
                 if (ContentActions.Send(part, payload))
                 {
@@ -1063,7 +1178,9 @@ internal static class FunctionEditor
                     FunctionDirectory.RequestRefresh();
                 }
                 else
+                {
                     SetNotice("Not connected to server.");
+                }
             });
         }
         string reason =
@@ -1223,10 +1340,16 @@ internal static class FunctionEditor
     private static void FitDropdown(TMP_Dropdown dropdown)
     {
         if (dropdown == null || dropdown.template == null || dropdown.IsExpanded)
+        {
             return;
+        }
+
         var canvas = dropdown.GetComponentInParent<Canvas>()?.rootCanvas;
         if (canvas == null)
+        {
             return;
+        }
+
         var canvasRect = (RectTransform)canvas.transform;
         var corners = new Vector3[4];
         ((RectTransform)dropdown.transform).GetWorldCorners(corners);
@@ -1242,7 +1365,10 @@ internal static class FunctionEditor
     {
         var source = _options[_sourceIndex % _options.Count].Socket;
         if (_sources[section] is not JObject entries)
+        {
             _sources[section] = entries = new JObject();
+        }
+
         entries[label ?? source.EntityId + ":" + source.Socket.PartId] = new JObject
         {
             ["ship"] = source.EntityId,
@@ -1254,9 +1380,15 @@ internal static class FunctionEditor
     private static void Rebuild()
     {
         if (_bodyScroll != null)
+        {
             _scrollPosition = _bodyScroll.verticalNormalizedPosition;
+        }
+
         if (_root != null)
+        {
             UnityEngine.Object.DestroyImmediate(_root);
+        }
+
         _root = null;
         _feedback = null;
         _statusText = null;
@@ -1406,7 +1538,10 @@ internal static class FunctionEditor
     {
         IShipsProvider ships = ServiceLocator.GetService<IShipsClientProvider>();
         if (ships == null || !ships.TryGetShip(part.ShipId, out IShipStateRead current))
+        {
             return Array.Empty<IShipStateRead>();
+        }
+
         var candidates = new Dictionary<uint, IShipStateRead> { { current.Id, current } };
         if (ships.TryGetRootShip(current.Id, out var root))
         {
@@ -1416,27 +1551,36 @@ internal static class FunctionEditor
                 // Use native data only for discovery. A rotor-only closure below
                 // excludes docked neighbors from the actual picker.
                 if (linked.Ship != null)
+                {
                     candidates[linked.Ship.Id] = linked.Ship;
+                }
             }
         }
         foreach (var ship in ships.GetAllShipsInSpace(current.SpaceId))
+        {
             candidates[ship.Id] = ship;
+        }
+
         var connected = new HashSet<uint> { current.Id };
         bool changed;
         do
         {
             changed = false;
             foreach (var ship in candidates.Values)
-            foreach (var piece in ship.StatefulParts)
-                if (
-                    piece.State is RotorState r
-                    && candidates.ContainsKey(r.AnchoredShipId)
-                    && (connected.Contains(ship.Id) || connected.Contains(r.AnchoredShipId))
-                )
+            {
+                foreach (var piece in ship.StatefulParts)
                 {
-                    changed |= connected.Add(ship.Id);
-                    changed |= connected.Add(r.AnchoredShipId);
+                    if (
+                        piece.State is RotorState r
+                        && candidates.ContainsKey(r.AnchoredShipId)
+                        && (connected.Contains(ship.Id) || connected.Contains(r.AnchoredShipId))
+                    )
+                    {
+                        changed |= connected.Add(ship.Id);
+                        changed |= connected.Add(r.AnchoredShipId);
+                    }
                 }
+            }
         } while (changed && connected.Count <= 128);
         return candidates.Values.Where(s => connected.Contains(s.Id)).OrderBy(s => s.Id).ToArray();
     }
@@ -1445,36 +1589,44 @@ internal static class FunctionEditor
     {
         var result = new List<(EntityPartSocket, string)>();
         foreach (var ship in AssemblyShips(part))
-        foreach (var piece in ship.StatefulParts.OrderBy(p => p.Id))
         {
-            bool supported =
-                piece.State is ConstantState
-                || piece.State is LeverState
-                || piece.State is MathGateState
-                || piece.State is SignalProcessorState
-                || piece.State is MemoryRegisterState
-                || piece.State is VelocitySensorState
-                || piece.State is AngularVelSensorState
-                || piece.State is GasSensorState
-                || piece.State is FluidTankState;
-            if (!supported)
-                continue;
-            byte[] sockets =
-                piece.State is ISignalEmitterState e ? e.EmissionSockets
-                : piece.State is ISignalProcessorState p ? p.EmissionSockets
-                : Array.Empty<byte>();
-            foreach (byte socket in sockets)
+            foreach (var piece in ship.StatefulParts.OrderBy(p => p.Id))
             {
-                result.Add(
-                    (
-                        new EntityPartSocket(ship.Id, piece.Id, socket),
-                        FunctionSourcePresentation.Label(part, new EntityPartSocket(ship.Id, piece.Id, socket))
-                    )
-                );
-                if (result.Count >= 512)
-                    return result;
+                bool supported =
+                    piece.State is ConstantState
+                    || piece.State is LeverState
+                    || piece.State is MathGateState
+                    || piece.State is SignalProcessorState
+                    || piece.State is MemoryRegisterState
+                    || piece.State is VelocitySensorState
+                    || piece.State is AngularVelSensorState
+                    || piece.State is GasSensorState
+                    || piece.State is FluidTankState;
+                if (!supported)
+                {
+                    continue;
+                }
+
+                byte[] sockets =
+                    piece.State is ISignalEmitterState e ? e.EmissionSockets
+                    : piece.State is ISignalProcessorState p ? p.EmissionSockets
+                    : Array.Empty<byte>();
+                foreach (byte socket in sockets)
+                {
+                    result.Add(
+                        (
+                            new EntityPartSocket(ship.Id, piece.Id, socket),
+                            FunctionSourcePresentation.Label(part, new EntityPartSocket(ship.Id, piece.Id, socket))
+                        )
+                    );
+                    if (result.Count >= 512)
+                    {
+                        return result;
+                    }
+                }
             }
         }
+
         return result;
     }
 }

@@ -58,9 +58,15 @@ public sealed class BroadcastLink<T>
     {
         NetworkManager next = InstanceFinder.NetworkManager;
         if (next == null || next == _network)
+        {
             return false;
+        }
+
         if (_network != null)
+        {
             Unregister(_network);
+        }
+
         Register(next);
         _network = next;
         return true;
@@ -69,16 +75,23 @@ public sealed class BroadcastLink<T>
     public void Uninstall()
     {
         if (_network != null)
+        {
             Unregister(_network);
+        }
+
         _network = null;
     }
 
     private void Register(NetworkManager manager)
     {
         if (_serverSide)
+        {
             manager.ServerManager.RegisterBroadcast<T>(_serverHandler, _requireAuthentication);
+        }
         else
+        {
             manager.ClientManager.RegisterBroadcast<T>(_clientHandler);
+        }
     }
 
     private void Unregister(NetworkManager manager)
@@ -86,9 +99,13 @@ public sealed class BroadcastLink<T>
         try
         {
             if (_serverSide)
+            {
                 manager.ServerManager.UnregisterBroadcast<T>(_serverHandler);
+            }
             else
+            {
                 manager.ClientManager.UnregisterBroadcast<T>(_clientHandler);
+            }
         }
         catch { }
     }

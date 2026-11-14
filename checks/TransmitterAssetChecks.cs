@@ -22,7 +22,10 @@ internal static class TransmitterAssetChecks
                 && !typeName.Contains("ItemSettings")
                 && !typeName.Contains("Settings")
             )
+            {
                 continue;
+            }
+
             object id = Field(asset, "id");
             string label =
                 asset.name
@@ -35,7 +38,10 @@ internal static class TransmitterAssetChecks
                 lines.Add("PART type=" + typeName + " id=" + id + " asset=" + asset.name + " label=" + label);
                 var prefab = Field(asset, "part") as GameObject;
                 if (prefab == null)
+                {
                     continue;
+                }
+
                 Transform root = prefab.transform;
                 foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
                 {
@@ -53,10 +59,16 @@ internal static class TransmitterAssetChecks
                     foreach (Component component in t.GetComponents<Component>())
                     {
                         if (component == null)
+                        {
                             continue;
+                        }
+
                         lines.Add("    COMP " + component.GetType().FullName);
                         if (component is MeshFilter mesh && mesh.sharedMesh != null)
+                        {
                             DumpMesh(lines, mesh, root, path);
+                        }
+
                         if (component is Canvas canvas)
                         {
                             lines.Add(
@@ -92,6 +104,7 @@ internal static class TransmitterAssetChecks
                             }
                         }
                         if (component is RectTransform rect)
+                        {
                             lines.Add(
                                 "      RECT rect="
                                     + rect.rect.ToString("F4")
@@ -104,6 +117,8 @@ internal static class TransmitterAssetChecks
                                     + " sizeDelta="
                                     + rect.sizeDelta.ToString("F4")
                             );
+                        }
+
                         if (component is TMP_Text text)
                         {
                             var material = text.fontSharedMaterial;
@@ -140,12 +155,15 @@ internal static class TransmitterAssetChecks
                             DumpMaterial(lines, material);
                         }
                         if (component is CanvasRenderer canvasRenderer)
+                        {
                             lines.Add(
                                 "      CANVAS_RENDERER cull="
                                     + canvasRenderer.cull
                                     + " materialCount="
                                     + canvasRenderer.materialCount
                             );
+                        }
+
                         if (component is Renderer renderer)
                         {
                             lines.Add(
@@ -159,6 +177,7 @@ internal static class TransmitterAssetChecks
                                     + renderer.sortingOrder
                             );
                             foreach (var material in renderer.sharedMaterials)
+                            {
                                 if (material != null)
                                 {
                                     lines.Add(
@@ -173,6 +192,7 @@ internal static class TransmitterAssetChecks
                                     );
                                     DumpMaterial(lines, material);
                                 }
+                            }
                         }
                         foreach (
                             FieldInfo f in component
@@ -188,10 +208,15 @@ internal static class TransmitterAssetChecks
                                     || Has(f.Name, "channel")
                                 )
                             )
+                            {
                                 continue;
+                            }
+
                             object value = f.GetValue(component);
                             if (value != null)
+                            {
                                 lines.Add("      FIELD " + f.Name + "=" + value);
+                            }
                         }
                     }
                 }
@@ -199,7 +224,9 @@ internal static class TransmitterAssetChecks
             if (
                 typeName.Contains("ItemSettings") && (Has(label, "iron") || Has(label, "copper") || Has(label, "shard"))
             )
+            {
                 lines.Add("ITEM type=" + typeName + " id=" + id + " asset=" + asset.name + " label=" + label);
+            }
         }
         File.WriteAllLines(Path.Combine(output, "transmitter-asset-inventory.txt"), lines);
     }
@@ -213,7 +240,9 @@ internal static class TransmitterAssetChecks
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.IgnoreCase
             );
             if (field != null)
+            {
                 return field.GetValue(target);
+            }
         }
         return null;
     }
@@ -250,6 +279,7 @@ internal static class TransmitterAssetChecks
         if (path == "Visual/Model/Screen" || path == "Visual/Model/ScreenGlass")
         {
             for (int i = 0; i < vertices.Length; i++)
+            {
                 lines.Add(
                     "        VERTEX "
                         + i
@@ -258,6 +288,8 @@ internal static class TransmitterAssetChecks
                         + " root="
                         + root.InverseTransformPoint(filter.transform.TransformPoint(vertices[i])).ToString("F6")
                 );
+            }
+
             int[] triangles = mesh.triangles;
             lines.Add("        TRIANGLES=" + string.Join(",", triangles));
         }
@@ -266,7 +298,10 @@ internal static class TransmitterAssetChecks
     private static void DumpMaterial(List<string> lines, Material material)
     {
         if (material == null)
+        {
             return;
+        }
+
         foreach (
             string property in new[]
             {
@@ -289,16 +324,24 @@ internal static class TransmitterAssetChecks
         )
         {
             if (!material.HasProperty(property))
+            {
                 continue;
+            }
+
             string value;
             if (
                 property.EndsWith("Color", StringComparison.Ordinal)
                 || property == "_Color"
                 || property == "_BaseColor"
             )
+            {
                 value = material.GetColor(property).ToString();
+            }
             else
+            {
                 value = material.GetFloat(property).ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+            }
+
             lines.Add("      MATPROP " + property + "=" + value);
         }
     }
@@ -306,10 +349,16 @@ internal static class TransmitterAssetChecks
     private static string PathOf(Transform transform, Transform root)
     {
         if (transform == root)
+        {
             return ".";
+        }
+
         var names = new Stack<string>();
         for (Transform t = transform; t != null && t != root; t = t.parent)
+        {
             names.Push(t.name);
+        }
+
         return string.Join("/", names.ToArray());
     }
 }
