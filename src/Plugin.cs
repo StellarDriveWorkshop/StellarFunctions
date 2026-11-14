@@ -2,7 +2,7 @@ using System.Reflection;
 using MelonLoader;
 using StellarFunctions.Content;
 
-[assembly: MelonInfo(typeof(StellarFunctions.Plugin), "StellarDrive Functions", "1.0.0", "Josia / Codex", null)]
+[assembly: MelonInfo(typeof(StellarFunctions.Plugin), "StellarDrive Functions", "1.0.0", "Killabears", null)]
 [assembly: MelonGame("CuriousOwlGames", "StellarDrive")]
 
 namespace StellarFunctions;
