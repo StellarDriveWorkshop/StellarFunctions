@@ -57,6 +57,21 @@ reference assembly inputs.
   ./checks/persistence-json-check.ps1 -GameInstall 'D:\Games\StellarDrive Demo'
   ```
 
+## C# formatting
+
+The repository pins CSharpier as a local .NET tool. Restore it once, then
+format or check the maintained C# source and checks before submitting changes:
+
+```powershell
+dotnet tool restore
+dotnet csharpier format src checks
+dotnet csharpier check src checks
+```
+
+The configuration uses a 120-column wrapping target and four-space indentation.
+Generated files, build outputs, and XML project files are excluded. Editor
+integrations should use this repository's pinned CSharpier version.
+
 ## Releases
 
 Release artifacts are versioned directories (`releases/v<major>.<minor>.<patch>/`)
