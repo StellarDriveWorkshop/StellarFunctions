@@ -1,0 +1,323 @@
+{
+  "id": "stellar-functions",
+  "name": "StellarDrive Functions",
+  "version": "1.0.0",
+  "parts": [
+    {
+      "id": 62006,
+      "asset": "StellarFunctionParam",
+      "label": "Param",
+      "description": "A named function argument, index 1-3, with an optional default.",
+      "donor": "SignalSplitter",
+      "state": "StellarFunctions.FunctionParamState, StellarFunctions",
+      "behaviour": "stellar-functions.param",
+      "buildMenuAfter": "VelocitySensor",
+      "mass": 1,
+      "snapping": "PreciseOnAny",
+      "menu": "panel",
+      "cost": {
+        "101": 1,
+        "112": 1
+      },
+      "visual": {
+        "clearDonor": true,
+        "fitInteraction": true,
+        "meshes": [
+          {
+            "donorPath": "SignalDisplay|Visuals/SignalDisplay",
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          {
+            "screen": "stellar-functions.status",
+            "shape": "screen",
+            "position": [
+              0,
+              0.1515,
+              0
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ],
+            "scale": [
+              0.36,
+              0.16,
+              1
+            ],
+            "columns": 22
+          }
+        ]
+      },
+      "sockets": [
+        {
+          "id": 0,
+          "type": "signal",
+          "position": [
+            0.25,
+            0.07,
+            0
+          ],
+          "facing": [
+            0,
+            270,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "id": 62007,
+      "asset": "StellarFunctionReturn",
+      "label": "Return",
+      "description": "The named result of a reusable circuit template.",
+      "donor": "SignalSplitter",
+      "state": "StellarFunctions.FunctionReturnState, StellarFunctions",
+      "behaviour": "stellar-functions.return",
+      "buildMenuAfter": "VelocitySensor",
+      "mass": 1,
+      "snapping": "PreciseOnAny",
+      "menu": "panel",
+      "cost": {
+        "101": 1,
+        "112": 1
+      },
+      "visual": {
+        "clearDonor": true,
+        "fitInteraction": true,
+        "meshes": [
+          {
+            "donorPath": "SignalDisplay|Visuals/SignalDisplay",
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          },
+          {
+            "screen": "stellar-functions.status",
+            "shape": "screen",
+            "position": [
+              0,
+              0.1515,
+              0
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ],
+            "scale": [
+              0.36,
+              0.16,
+              1
+            ],
+            "columns": 22
+          }
+        ]
+      },
+      "sockets": [
+        {
+          "id": 0,
+          "type": "signal",
+          "position": [
+            -0.25,
+            0.07,
+            0
+          ],
+          "facing": [
+            0,
+            90,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "id": 62005,
+      "asset": "StellarFunctionCall",
+      "label": "Call",
+      "description": "Calls a local or broadcast circuit function. Press F to choose a function.",
+      "donor": "SignalSplitter",
+      "state": "StellarFunctions.FunctionCallState, StellarFunctions",
+      "behaviour": "stellar-functions.call",
+      "buildMenuAfter": "VelocitySensor",
+      "mass": 1,
+      "snapping": "PreciseOnAny",
+      "menu": "panel",
+      "cost": {
+        "101": 1,
+        "112": 1
+      },
+      "visual": {
+        "clearDonor": true,
+        "fitInteraction": true,
+        "meshes": [
+          {
+            "donorPath": "MathGate|Visuals/MathGate",
+            "scale": [
+              1.6,
+              1,
+              1
+            ],
+            "position": [
+              0.125,
+              0,
+              0
+            ]
+          },
+          {
+            "screen": "stellar-functions.status",
+            "shape": "screen",
+            "position": [
+              0.125,
+              0.1515,
+              -0.012
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ],
+            "scale": [
+              0.28,
+              0.075,
+              1
+            ],
+            "columns": 22
+          }
+        ]
+      },
+      "sockets": [
+        {
+          "id": 0,
+          "type": "signal",
+          "position": [
+            -0.125,
+            0.07,
+            -0.125
+          ],
+          "facing": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": 1,
+          "type": "signal",
+          "position": [
+            0.125,
+            0.07,
+            -0.125
+          ],
+          "facing": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": 2,
+          "type": "signal",
+          "position": [
+            0.375,
+            0.07,
+            -0.125
+          ],
+          "facing": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "id": 3,
+          "type": "signal",
+          "position": [
+            0.125,
+            0.07,
+            0.125
+          ],
+          "facing": [
+            0,
+            180,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "id": 62009,
+      "asset": "StellarFunctionTransmitter",
+      "label": "Function Transmitter",
+      "description": "Makes opted-in functions on this connected ship/base available to all ships. Press F to manage broadcasts.",
+      "donor": "SignalSplitter",
+      "state": "StellarFunctions.FunctionTransmitterState, StellarFunctions",
+      "behaviour": "stellar-functions.transmitter",
+      "buildMenuAfter": "VelocitySensor",
+      "mass": 5,
+      "snapping": "PreciseOnAny",
+      "menu": "panel",
+      "cost": {
+        "101": 1,
+        "112": 1,
+        "103": 1
+      },
+      "visual": {
+        "clearDonor": true,
+        "fitInteraction": true,
+        "meshes": [
+          {
+            "donorPath": "TargetingComputer|Visual/Model/Model"
+          },
+          {
+            "donorPath": "TargetingComputer|Visual/Model/Screen"
+          },
+          {
+            "donorPath": "TargetingComputer|Visual/Model/ScreenGlass"
+          },
+          {
+            "screen": "stellar-functions.status",
+            "shape": "screen",
+            "position": [
+              0,
+              0.997501,
+              -0.030833
+            ],
+            "rotation": [
+              38.85,
+              0,
+              0
+            ],
+            "scale": [
+              0.46,
+              0.46,
+              1
+            ],
+            "columns": 48
+          }
+        ]
+      },
+      "sockets": []
+    }
+  ],
+  "research": [
+    {
+      "id": 62008,
+      "name": "Circuit Functions",
+      "hidden": true,
+      "grantedByName": "Advanced Signal Processing",
+      "parts": [
+        "StellarFunctionParam",
+        "StellarFunctionReturn",
+        "StellarFunctionCall",
+        "StellarFunctionTransmitter"
+      ]
+    }
+  ]
+}

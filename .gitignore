@@ -1,0 +1,37 @@
+# Private test workspaces and output
+/work/
+/local/
+/build/
+/bin/
+/obj/
+**/bin/
+**/obj/
+
+# Copied game/mod dependencies and private diagnostics
+*.log
+*.log.*
+*.pdb
+*.mdb
+*.cache
+*.user
+*.suo
+*.tmp
+*.bak
+
+# Local IDE state
+/.idea/
+/.vs/
+/.vscode/
+
+# Generated repo dumps
+repomix-output.md
+
+# Local diagnostic opt-in marker (never ship)
+StellarFunctions.diagnostics
+
+# Local developer opt-in marker (never ship)
+StellarFunctions.advanced
+
+# Screen profiler opt-in marker (never ship)
+StellarFunctions.profile
+/releases/

@@ -1,0 +1,12 @@
+{
+  "id": "stellar-functions",
+  "name": "StellarDrive Functions",
+  "author": "Killabears",
+  "version": "1.0.0",
+  "description": "Turn ship wiring into reusable functions with Param, Return, and Call parts. Each Call keeps its own Memory. Use a Function Transmitter to share a template with other ships. Install on the host and all joining clients.",
+  "thumbnail": "images/thumbnail.png",
+  "images": [],
+  "ai": "ai-assisted",
+  "development": "active",
+  "tags": ["logic", "signal"]
+}
