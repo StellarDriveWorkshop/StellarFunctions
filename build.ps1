@@ -32,10 +32,14 @@ if (-not (Test-Path -LiteralPath $compiler)) { throw "Roslyn compiler not found 
 
 $work = Join-Path $PSScriptRoot 'work'
 New-Item -ItemType Directory -Path $work -Force | Out-Null
+$normalizedContent = Join-Path $work 'functions.normalized.json'
+$contentText = [Text.Encoding]::UTF8.GetString($contentBytes)
+$contentText = $contentText.Replace("`r`n", "`n").Replace("`r", "`n")
+[IO.File]::WriteAllText($normalizedContent, $contentText, [Text.UTF8Encoding]::new($false))
 $output = Join-Path $work 'StellarFunctions.dll'
 $sources = Get-ChildItem (Join-Path $PSScriptRoot 'src') -Filter '*.cs' -Recurse | ForEach-Object FullName
 $arguments = @('-nologo', '-target:library', '-langversion:latest', '-optimize+', '-deterministic+', '-nostdlib+', "-out:$output")
-$arguments += "-resource:$(Join-Path $PSScriptRoot 'content/functions.json'),content.functions.json"
+$arguments += "-resource:$normalizedContent,content.functions.json"
 $arguments += $sources
 foreach ($name in @(
     'mscorlib', 'System', 'System.Core', 'netstandard', 'System.Runtime',
