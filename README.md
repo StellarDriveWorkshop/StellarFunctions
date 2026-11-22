@@ -21,8 +21,11 @@ on their faces; long names shrink to a readable size, then scroll.
 Selecting a new function sizes an unwired Call to match its inputs when the
 housing has room to change size. A function with no parameters uses the
 one-input housing. Use the input-count buttons to override the size. Omitted
-inputs use their parameter defaults, or zero if there is no default. Calls
-with any terminal connected keep their current size.
+inputs use their parameter defaults, or zero if there is no default. Manual
+resizing can preserve plugged cables on retained sockets. If shrinking would
+remove a wired input, the diagram highlights it and asks before removing its
+cable. Direct contacts, loose cable ends and insufficient clearance can block
+a resize.
 
 ## Install
 

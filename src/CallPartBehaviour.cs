@@ -43,7 +43,7 @@ public sealed class CallPartBehaviour : PartBehaviour
 
         state = current;
 
-        if (CallSizing.Handle(liveShip, livePart, state, action))
+        if (CallSizing.Handle(liveShip, livePart, state, player.Id, action))
         {
             return;
         }
@@ -207,6 +207,7 @@ public sealed class CallPartBehaviour : PartBehaviour
 
     public override void OnWorldExit()
     {
+        CallResizeWiring.Reset();
         NativeFunctionRuntime.Reset();
         FunctionEdits.Reset();
         FunctionEditor.Reset();

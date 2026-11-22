@@ -56,13 +56,15 @@ internal static class CallSizing
     private static HarmonyLib.Harmony _harmony;
     internal static bool Ready { get; private set; }
 
-    internal static string Payload(FunctionCallState state, int count) =>
+    internal static string Payload(FunctionCallState state, int count, string session) =>
         ActionPrefix
         + state.InstanceId.ToString("N")
         + ":"
         + state.InputCount.ToString(CultureInfo.InvariantCulture)
         + ":"
-        + count.ToString(CultureInfo.InvariantCulture);
+        + count.ToString(CultureInfo.InvariantCulture)
+        + ":"
+        + session;
 
     internal static bool HasTerminalConnections(PartContext part)
     {
@@ -83,42 +85,46 @@ internal static class CallSizing
         return false;
     }
 
-    internal static bool Handle(TrackedShipServer ship, StatefulPart part, FunctionCallState state, string action)
+    internal static bool Handle(
+        TrackedShipServer ship,
+        StatefulPart part,
+        FunctionCallState state,
+        uint playerId,
+        string action
+    )
     {
         if (!action.StartsWith(ActionPrefix, StringComparison.Ordinal))
         {
-            return false;
+            return CallResizeWiring.HandleConfirmation(ship, part, state, playerId, action);
         }
 
         string[] fields = action.Substring(ActionPrefix.Length).Split(':');
         if (
-            fields.Length != 3
+            fields.Length != 4
             || fields[0] != state.InstanceId.ToString("N")
             || !int.TryParse(fields[1], NumberStyles.None, CultureInfo.InvariantCulture, out int expected)
             || expected != state.InputCount
             || !int.TryParse(fields[2], NumberStyles.None, CultureInfo.InvariantCulture, out int count)
             || count < 1
             || count > 3
+            || !Guid.TryParseExact(fields[3], "N", out var session)
+            || session == Guid.Empty
         )
         {
-            ship.UpdatePartState(
-                part.Id,
-                state with
-                {
-                    ResizeFeedback = "Size changed or invalid request. Reopen the menu.",
-                }
-            );
+            Reply(ship, part, "Size changed or invalid request. Reopen the menu.");
             return true;
         }
 
-        var next = PrepareResize(ship, part, state, count);
-        ship.UpdatePartState(part.Id, next);
-        if (next.ResizeFeedback.Length == 0)
-        {
-            InvalidateAfterResize();
-        }
-
+        CallResizeWiring.Request(ship, part, state, playerId, session.ToString("N"), count);
         return true;
+    }
+
+    internal static void Reply(TrackedShipServer ship, StatefulPart part, string message)
+    {
+        if (part.State is FunctionCallState state && state.ResizeFeedback != message)
+        {
+            ship.UpdatePartState(part.Id, state with { ResizeFeedback = message });
+        }
     }
 
     internal static FunctionCallState PrepareResize(
@@ -128,27 +134,30 @@ internal static class CallSizing
         int count
     )
     {
-        if (!Ready)
-        {
-            return state with { ResizeFeedback = "Call resizing is unavailable on this game build." };
-        }
-
-        if (!string.IsNullOrEmpty(state.PendingFunctionId))
-        {
-            return state with { ResizeFeedback = "Finish or cancel the function change first." };
-        }
-
         if (HasTerminalConnections(new PartContext(ship.Id, part.Id)))
         {
-            return state with { ResizeFeedback = "Disconnect all terminals to change input count." };
+            return state with { ResizeFeedback = "Automatic sizing requires an unwired Call." };
         }
 
-        if (count != state.InputCount && !Clearance(ship, part, count, out string error))
+        string problem = SizeProblem(ship, part, state, count);
+        return problem == null ? AtSize(state, count) : state with { ResizeFeedback = problem };
+    }
+
+    internal static string SizeProblem(TrackedShipServer ship, StatefulPart part, FunctionCallState state, int count)
+    {
+        if (!Ready)
         {
-            return state with { ResizeFeedback = error };
+            return "Call resizing is unavailable on this game build.";
         }
+        if (!string.IsNullOrEmpty(state.PendingFunctionId))
+        {
+            return "Finish or cancel the function change first.";
+        }
+        return count != state.InputCount && !Clearance(ship, part, count, out string error) ? error : null;
+    }
 
-        return state with
+    internal static FunctionCallState AtSize(FunctionCallState state, int count) =>
+        state with
         {
             InputCount = count,
             ResizeFeedback = "",
@@ -156,7 +165,6 @@ internal static class CallSizing
             LastInput1 = count < 2 ? 0 : state.LastInput1,
             LastInput2 = count < 3 ? 0 : state.LastInput2,
         };
-    }
 
     internal static void InvalidateAfterResize()
     {
@@ -438,6 +446,7 @@ internal static class CallSizing
 
     internal static void Uninstall()
     {
+        CallResizeWiring.Reset();
         Ready = false;
         _harmony?.UnpatchSelf();
         _harmony = null;

@@ -767,9 +767,9 @@ internal static class UiRedesignChecks
             CallRoot().GetComponentsInChildren<Button>(true).Single(b => b.gameObject.name == "Inputs " + count);
         FunctionCallState State() => (FunctionCallState)content.Part.State;
         void SetCount(int count) => content.Part.State = State() with { InputCount = count, ResizeFeedback = "" };
-        void SetDirectory(bool? wired)
+        void SetDirectory(bool available)
         {
-            if (wired == null)
+            if (!available)
             {
                 setter.Invoke(null, new object[] { null });
                 return;
@@ -777,10 +777,9 @@ internal static class UiRedesignChecks
             Type snapshotType = directory.GetNestedType("Snapshot", BindingFlags.Public | BindingFlags.NonPublic);
             object snapshot = Activator.CreateInstance(snapshotType, true);
             snapshotType.GetField("Target").SetValue(snapshot, State().StableId.ToString("N"));
-            snapshotType.GetField("Session").SetValue(snapshot, "private-ui-fixture");
+            snapshotType.GetField("Session").SetValue(snapshot, "0123456789abcdef0123456789abcdef");
             snapshotType.GetField("Sequence").SetValue(snapshot, 1L);
             snapshotType.GetField("Eligible").SetValue(snapshot, true);
-            snapshotType.GetField("CallWired").SetValue(snapshot, wired.Value);
             Type entryType = snapshotType.GetField("Entries").FieldType.GetElementType();
             snapshotType.GetField("Entries").SetValue(snapshot, Array.CreateInstance(entryType, 0));
             setter.Invoke(null, new[] { snapshot });
@@ -803,7 +802,7 @@ internal static class UiRedesignChecks
         Sent = null;
         AccessTools.Method(Editor, "Reset").Invoke(null, null);
         SetCount(3);
-        SetDirectory(null);
+        SetDirectory(false);
         Refresh();
         Check(
             Sent == null || Sent.StartsWith("directory:"),
@@ -813,7 +812,7 @@ internal static class UiRedesignChecks
             Enumerable.Range(1, 3).All(n => !CountButton(n).interactable),
             "input count controls remain disabled while the function directory is absent"
         );
-        SetDirectory(false);
+        SetDirectory(true);
         Refresh(true);
         Check(
             Enumerable.Range(1, 3).All(n => CountButton(n).interactable),
@@ -833,7 +832,7 @@ internal static class UiRedesignChecks
         );
         CountButton(1).onClick.Invoke();
         Check(
-            Sent == "resize-call:" + State().InstanceId.ToString("N") + ":3:1",
+            Sent == "resize-call:" + State().InstanceId.ToString("N") + ":3:1:0123456789abcdef0123456789abcdef",
             "explicit count selection sends only the instance-scoped resize action"
         );
         Check(State().InputCount == 3, "client resize request leaves authoritative input count unchanged");
@@ -877,17 +876,51 @@ internal static class UiRedesignChecks
         Check(State().InputCount == 3, "resize timeout keeps the server-confirmed three-input preview");
         SetDirectory(true);
         Refresh(true);
+        Check(Enumerable.Range(1, 3).All(n => CountButton(n).interactable), "the editor accepts a new resize request");
         Check(
-            Enumerable.Range(1, 3).All(n => !CountButton(n).interactable),
-            "any wired terminal including output keeps resizing disabled"
+            !CallRoot().GetComponentsInChildren<Transform>(true).Any(t => t.name.EndsWith(" disconnect highlight")),
+            "the diagram highlights no sockets until the server identifies them"
+        );
+        CountButton(1).onClick.Invoke();
+        var snapshot = current.GetValue(null);
+        var field = snapshot.GetType().GetField("ResizeConfirmation");
+        var offer = Activator.CreateInstance(field.FieldType, true);
+        field.FieldType.GetField("Token").SetValue(offer, "0123456789abcdef0123456789abcdef");
+        field.FieldType.GetField("InputCount").SetValue(offer, 1);
+        field.FieldType.GetField("Inputs").SetValue(offer, (byte)4);
+        field.SetValue(snapshot, offer);
+        Refresh(true);
+        Check(State().InputCount == 3, "wired resize offer does not mutate the client part");
+        Check(
+            CallRoot().GetComponentsInChildren<Transform>(true).Any(t => t.name == "Input 3 disconnect highlight"),
+            "affected input has a persistent diagram highlight"
         );
         Check(
-            CallRoot()
-                .GetComponentsInChildren<TMP_Text>(true)
-                .Any(t => t.text == "Disconnect all terminals to change input count."),
-            "wired Call shows the disconnect-all-terminals reason"
+            CallRoot().GetComponentsInChildren<TMP_Text>(true).Any(t => t.text.Contains("Input 3 [REMOVE CABLE]")),
+            "affected input has a textual marker"
         );
-        SetDirectory(false);
+        var cancel = CallRoot()
+            .GetComponentsInChildren<Button>(true)
+            .Single(b => b.GetComponentInChildren<TMP_Text>()?.text == "Cancel resize");
+        cancel.onClick.Invoke();
+        Check(Sent == "cancel-call-resize:0123456789abcdef0123456789abcdef", "cancel sends the offer token");
+        Check(
+            !CallRoot().GetComponentsInChildren<Transform>(true).Any(t => t.name == "Input 3 disconnect highlight"),
+            "cancel promptly clears the offer"
+        );
+        CountButton(1).onClick.Invoke();
+        field.FieldType.GetField("Token").SetValue(offer, "1123456789abcdef0123456789abcdef");
+        Refresh(true);
+        var confirm = CallRoot()
+            .GetComponentsInChildren<Button>(true)
+            .Single(b => b.GetComponentInChildren<TMP_Text>()?.text == "Remove cable from Input 3 and resize");
+        confirm.onClick.Invoke();
+        Check(
+            Sent == "confirm-call-resize:1123456789abcdef0123456789abcdef" && State().InputCount == 3,
+            "confirmation names the cable, sends the exact token and waits for authoritative size"
+        );
+        SetCount(1);
+        SetDirectory(true);
         Refresh(true);
     }
 

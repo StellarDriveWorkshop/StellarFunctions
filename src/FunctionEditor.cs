@@ -30,6 +30,7 @@ internal static class FunctionEditor
     private static string _callRevision = "",
         _directoryRevision = "",
         _inputCountFeedbackBefore = "";
+    private static string _handledResizeToken = "";
     private static int _requestedInputCount;
     private static float _inputCountRequestedAt;
     private static FunctionDirectory.Snapshot _seenDirectory;
@@ -229,6 +230,13 @@ internal static class FunctionEditor
                     _callRevision = "";
                 }
             }
+            var offer = CurrentResizeOffer();
+            if (_requestedInputCount != 0 && offer != null && offer.InputCount == _requestedInputCount)
+            {
+                _requestedInputCount = 0;
+                _callRevision = "";
+                SetNotice("Review the affected inputs below.");
+            }
             if (_requestedInputCount != 0)
             {
                 if (call.InputCount == _requestedInputCount)
@@ -274,7 +282,9 @@ internal static class FunctionEditor
                 + "|"
                 + call.ResizeFeedback
                 + "|"
-                + (FunctionDirectory.Current?.CallWired ?? false)
+                + (offer?.Token ?? "")
+                + "|"
+                + (offer?.Inputs ?? 0)
                 + "|"
                 + string.Join("|", _choices.Select(e => e.Id + e.Name));
             if (revision != _callRevision && CanRebuild())
@@ -335,6 +345,7 @@ internal static class FunctionEditor
         }
 
         _requestedInputCount = 0;
+        _handledResizeToken = "";
         _inputCountRequestedAt = 0;
         _root = null;
         _body = null;
@@ -1134,10 +1145,12 @@ internal static class FunctionEditor
         var caption = Label(row.transform, "Inputs");
         caption.GetComponent<LayoutElement>().preferredWidth = 110;
         caption.GetComponent<LayoutElement>().flexibleWidth = 0;
-        bool wired = FunctionDirectory.Current?.CallWired ?? false;
         bool pending = _requestedInputCount != 0;
         bool enabled =
-            FunctionDirectory.Current != null && !wired && !pending && string.IsNullOrEmpty(call.PendingFunctionId);
+            FunctionDirectory.Current != null
+            && !pending
+            && CurrentResizeOffer() == null
+            && string.IsNullOrEmpty(call.PendingFunctionId);
         for (int count = 1; count <= 3; count++)
         {
             int chosen = count;
@@ -1162,12 +1175,17 @@ internal static class FunctionEditor
             button.interactable = enabled;
             button.onClick.AddListener(() =>
             {
-                if (chosen == call.InputCount || _requestedInputCount != 0)
+                if (
+                    chosen == call.InputCount
+                    || _requestedInputCount != 0
+                    || CurrentResizeOffer() != null
+                    || FunctionDirectory.Current is not { } directory
+                )
                 {
                     return;
                 }
 
-                string payload = CallSizing.Payload(call, chosen);
+                string payload = CallSizing.Payload(call, chosen, directory.Session);
                 if (ContentActions.Send(part, payload))
                 {
                     _requestedInputCount = chosen;
@@ -1184,14 +1202,90 @@ internal static class FunctionEditor
             });
         }
         string reason =
-            wired ? "Disconnect all terminals to change input count."
-            : pending ? "Waiting for server confirmation…"
+            pending ? "Waiting for server confirmation…"
             : !string.IsNullOrEmpty(call.ResizeFeedback) ? call.ResizeFeedback
             : "Hidden inputs use parameter defaults (or 0 without a default).";
         var help = Label(_body, reason);
         help.fontSize = 19;
         help.textWrappingMode = TextWrappingModes.Normal;
         help.GetComponent<LayoutElement>().preferredHeight = 46;
+        var confirmation = CurrentResizeOffer();
+        if (confirmation != null)
+        {
+            var affected = Enumerable.Range(1, 3).Where(i => (confirmation.Inputs & (1 << (i - 1))) != 0).ToArray();
+            string inputs = string.Join(", ", affected.Select(i => "Input " + i));
+            string action =
+                "Remove " + (affected.Length == 1 ? "cable from " : "cables from ") + inputs + " and resize";
+            string target = confirmation.InputCount == 1 ? "1 input" : confirmation.InputCount + " inputs";
+            var warning = Label(_body, action + " to " + target + "?");
+            warning.color = new Color(1, .8f, .2f);
+            warning.textWrappingMode = TextWrappingModes.Normal;
+            warning.GetComponent<LayoutElement>().preferredHeight = 60;
+            Button(
+                _body,
+                action,
+                () =>
+                {
+                    if (CurrentResizeOffer()?.Token != confirmation.Token || _requestedInputCount != 0)
+                    {
+                        return;
+                    }
+
+                    if (ContentActions.Send(part, CallResizeWiring.ConfirmAction + confirmation.Token))
+                    {
+                        _handledResizeToken = confirmation.Token;
+                        _requestedInputCount = confirmation.InputCount;
+                        _inputCountFeedbackBefore = call.ResizeFeedback;
+                        _inputCountRequestedAt = Time.unscaledTime;
+                        _callRevision = "";
+                        SetNotice("Updating input count…");
+                        FunctionDirectory.RequestRefresh();
+                    }
+                    else
+                    {
+                        SetNotice("Not connected to server.");
+                    }
+                }
+            );
+            Button(
+                _body,
+                "Cancel resize",
+                () =>
+                {
+                    if (CurrentResizeOffer()?.Token != confirmation.Token)
+                    {
+                        return;
+                    }
+
+                    if (ContentActions.Send(part, CallResizeWiring.CancelAction + confirmation.Token))
+                    {
+                        _handledResizeToken = confirmation.Token;
+                        _callRevision = "";
+                        SetNotice("Resize cancelled.");
+                        Rebuild();
+                        FunctionDirectory.RequestRefresh();
+                    }
+                    else
+                    {
+                        SetNotice("Not connected to server.");
+                    }
+                }
+            );
+        }
+    }
+
+    private static CallResizeWiring.Confirmation CurrentResizeOffer()
+    {
+        var offer = FunctionDirectory.Current?.ResizeConfirmation;
+        return
+            offer != null
+            && offer.Token != _handledResizeToken
+            && _original is FunctionCallState call
+            && string.IsNullOrEmpty(call.PendingFunctionId)
+            && offer.InputCount < call.InputCount
+            && (offer.Inputs >> call.InputCount) == 0
+            ? offer
+            : null;
     }
 
     private static void Diagram(Transform parent, FunctionCallState call)
@@ -1232,14 +1326,25 @@ internal static class FunctionEditor
         nr.offsetMax = new Vector2(-8, -8);
         var labels = new[] { call.Input0Label, call.Input1Label, call.Input2Label };
         float firstSocketY = .5f + (count - 1) * .145f;
+        byte affectedInputs = CurrentResizeOffer()?.Inputs ?? 0;
         for (int i = 0; i < count; i++)
         {
             float y = firstSocketY - i * .29f;
+            bool affected = (affectedInputs & (1 << i)) != 0;
+            if (affected)
+            {
+                var outline = Node(root.transform, "Input " + (i + 1) + " disconnect highlight", typeof(Image));
+                outline.GetComponent<Image>().color = new Color(1, .8f, .1f);
+                Place(outline.transform, new Vector2(.465f, y), new Vector2(34, 42));
+            }
             var socket = Node(root.transform, "Input " + (i + 1) + " socket", typeof(Image));
             socket.GetComponent<Image>().color =
                 (call.ListeningMask & (1 << i)) != 0 ? new Color(.3f, .9f, 1) : new Color(.25f, .3f, .32f);
             Place(socket.transform, new Vector2(.465f, y), new Vector2(22, 30));
-            var label = Label(root.transform, "Input " + (i + 1) + "   " + labels[i]);
+            var label = Label(
+                root.transform,
+                "Input " + (i + 1) + (affected ? " [REMOVE CABLE]   " : "   ") + labels[i]
+            );
             label.fontSize = 20;
             label.alignment = TextAlignmentOptions.MidlineLeft;
             label.textWrappingMode = TextWrappingModes.Normal;

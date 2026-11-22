@@ -31,7 +31,9 @@ internal static class CallSizingAuthorityChecks
     internal static void Run(Action<bool, string> check)
     {
         const uint shipId = 491001;
+        const uint playerId = 491002;
         const ushort partId = 41;
+        string session = Guid.NewGuid().ToString("N");
         Type sizing = typeof(FunctionCallState).Assembly.GetType("StellarFunctions.CallSizing");
         MethodInfo handle = AccessTools.Method(sizing, "Handle"),
             payload = AccessTools.Method(sizing, "Payload"),
@@ -64,9 +66,9 @@ internal static class CallSizingAuthorityChecks
         state.AddStatefulPartWithoutInit(part);
         var original = (FunctionCallState)part.State;
         string Request(int count) =>
-            (string)payload.Invoke(null, new object[] { (FunctionCallState)part.State, count });
+            (string)payload.Invoke(null, new object[] { (FunctionCallState)part.State, count, session });
         void Act(string request) =>
-            handle.Invoke(null, new object[] { ship, part, (FunctionCallState)part.State, request });
+            handle.Invoke(null, new object[] { ship, part, (FunctionCallState)part.State, playerId, request });
         MethodInfo applySelection = AccessTools.Method(typeof(CallPartBehaviour), "ApplySelection");
         FunctionCallState Select(int inputs, out Guid id)
         {
@@ -106,13 +108,13 @@ internal static class CallSizingAuthorityChecks
                 ReferenceEquals(part.State, original),
                 "real Call action refuses a missing authenticated player before resizing"
             );
-            Act("resize-call:" + Guid.NewGuid().ToString("N") + ":3:1");
+            Act("resize-call:" + Guid.NewGuid().ToString("N") + ":3:1:" + session);
             check(
                 ((FunctionCallState)part.State).InputCount == 3
                     && !string.IsNullOrEmpty(((FunctionCallState)part.State).ResizeFeedback),
                 "resize transaction refuses a forged instance identity"
             );
-            Act("resize-call:" + original.InstanceId.ToString("N") + ":2:1");
+            Act("resize-call:" + original.InstanceId.ToString("N") + ":2:1:" + session);
             check(((FunctionCallState)part.State).InputCount == 3, "resize transaction refuses stale expected size");
             foreach (byte terminal in new byte[] { 0, 1, 2, 3 })
             {
@@ -125,8 +127,8 @@ internal static class CallSizingAuthorityChecks
                 Act(Request(1));
                 check(
                     ((FunctionCallState)part.State).InputCount == 3
-                        && ((FunctionCallState)part.State).ResizeFeedback.Contains("Disconnect all terminals"),
-                    "resize rejects a wire on terminal " + terminal + " including output3"
+                        && !string.IsNullOrEmpty(((FunctionCallState)part.State).ResizeFeedback),
+                    "resize rejects an unverified wire on terminal " + terminal + " including output3"
                 );
                 check(
                     connections.IsSocketPhysicallyOccupied(new EntityPartSocket(shipId, partId, terminal)),
@@ -231,7 +233,9 @@ internal static class CallSizingAuthorityChecks
                             ship,
                             mounted,
                             (FunctionCallState)mounted.State,
-                            (string)payload.Invoke(null, new object[] { (FunctionCallState)mounted.State, size }),
+                            playerId,
+                            (string)
+                                payload.Invoke(null, new object[] { (FunctionCallState)mounted.State, size, session }),
                         }
                     );
                 foreach (int size in new[] { 1, 2, 3, 2, 1, 3 })
@@ -523,7 +527,12 @@ internal static class CallSizingAuthorityChecks
                             ship,
                             oriented,
                             (FunctionCallState)oriented.State,
-                            (string)payload.Invoke(null, new object[] { (FunctionCallState)oriented.State, count }),
+                            playerId,
+                            (string)
+                                payload.Invoke(
+                                    null,
+                                    new object[] { (FunctionCallState)oriented.State, count, session }
+                                ),
                         }
                     );
                     check(
