@@ -18,6 +18,12 @@ reusable templates with private per-call state.
 A hidden research entry (62008) unlocks the set. All parts show live status
 on their faces; long names shrink to a readable size, then scroll.
 
+Selecting a new function sizes an unwired Call to match its inputs when the
+housing has room to change size. A function with no parameters uses the
+one-input housing. Use the input-count buttons to override the size. Omitted
+inputs use their parameter defaults, or zero if there is no default. Calls
+with any terminal connected keep their current size.
+
 ## Install
 
 1. Close the game and any server completely before replacing files.

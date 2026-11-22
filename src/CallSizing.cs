@@ -90,40 +90,65 @@ internal static class CallSizing
             return false;
         }
 
-        string error = "";
-        int count = 0;
         string[] fields = action.Substring(ActionPrefix.Length).Split(':');
-        if (!Ready)
-        {
-            error = "Call resizing is unavailable on this game build.";
-        }
-        else if (
+        if (
             fields.Length != 3
             || fields[0] != state.InstanceId.ToString("N")
             || !int.TryParse(fields[1], NumberStyles.None, CultureInfo.InvariantCulture, out int expected)
             || expected != state.InputCount
-            || !int.TryParse(fields[2], NumberStyles.None, CultureInfo.InvariantCulture, out count)
+            || !int.TryParse(fields[2], NumberStyles.None, CultureInfo.InvariantCulture, out int count)
             || count < 1
             || count > 3
         )
         {
-            error = "Size changed or invalid request. Reopen the menu.";
-        }
-        else if (!string.IsNullOrEmpty(state.PendingFunctionId))
-        {
-            error = "Finish or cancel the function change first.";
-        }
-        else if (HasTerminalConnections(new PartContext(ship.Id, part.Id)))
-        {
-            error = "Disconnect all terminals to change input count.";
-        }
-        else if (count != state.InputCount && !Clearance(ship, part, count, out error)) { }
-        if (error.Length > 0)
-        {
-            ship.UpdatePartState(part.Id, state with { ResizeFeedback = error });
+            ship.UpdatePartState(
+                part.Id,
+                state with
+                {
+                    ResizeFeedback = "Size changed or invalid request. Reopen the menu.",
+                }
+            );
             return true;
         }
-        var next = state with
+
+        var next = PrepareResize(ship, part, state, count);
+        ship.UpdatePartState(part.Id, next);
+        if (next.ResizeFeedback.Length == 0)
+        {
+            InvalidateAfterResize();
+        }
+
+        return true;
+    }
+
+    internal static FunctionCallState PrepareResize(
+        TrackedShipServer ship,
+        StatefulPart part,
+        FunctionCallState state,
+        int count
+    )
+    {
+        if (!Ready)
+        {
+            return state with { ResizeFeedback = "Call resizing is unavailable on this game build." };
+        }
+
+        if (!string.IsNullOrEmpty(state.PendingFunctionId))
+        {
+            return state with { ResizeFeedback = "Finish or cancel the function change first." };
+        }
+
+        if (HasTerminalConnections(new PartContext(ship.Id, part.Id)))
+        {
+            return state with { ResizeFeedback = "Disconnect all terminals to change input count." };
+        }
+
+        if (count != state.InputCount && !Clearance(ship, part, count, out string error))
+        {
+            return state with { ResizeFeedback = error };
+        }
+
+        return state with
         {
             InputCount = count,
             ResizeFeedback = "",
@@ -131,10 +156,12 @@ internal static class CallSizing
             LastInput1 = count < 2 ? 0 : state.LastInput1,
             LastInput2 = count < 3 ? 0 : state.LastInput2,
         };
-        ship.UpdatePartState(part.Id, next);
+    }
+
+    internal static void InvalidateAfterResize()
+    {
         NativeFunctionRuntime.Dirty();
         NativeTemplateHooks.InvalidateSchedule();
-        return true;
     }
 
     private static bool Clearance(TrackedShipServer ship, StatefulPart part, int count, out string error)

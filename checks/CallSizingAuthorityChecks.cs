@@ -67,6 +67,15 @@ internal static class CallSizingAuthorityChecks
             (string)payload.Invoke(null, new object[] { (FunctionCallState)part.State, count });
         void Act(string request) =>
             handle.Invoke(null, new object[] { ship, part, (FunctionCallState)part.State, request });
+        MethodInfo applySelection = AccessTools.Method(typeof(CallPartBehaviour), "ApplySelection");
+        FunctionCallState Select(int inputs, out Guid id)
+        {
+            id = Guid.NewGuid();
+            object graph = CallSizingDefaultsChecks.SelectionGraph(id, inputs);
+            applySelection.Invoke(null, new object[] { ship, part, (FunctionCallState)part.State, graph });
+            return (FunctionCallState)part.State;
+        }
+
         var scene = SceneManager.CreateScene(
             "Private Call resize clearance",
             new CreateSceneParameters(LocalPhysicsMode.Physics3D)
@@ -335,6 +344,15 @@ internal static class CallSizingAuthorityChecks
                     && ((FunctionCallState)part.State).ResizeFeedback.Contains("clear space"),
                 "overlapping neighbor refuses expansion and retains original model"
             );
+            var blockedSelection = Select(2, out Guid blockedId);
+            check(
+                blockedSelection.SelectedFunctionId == blockedId.ToString("N")
+                    && blockedSelection.InputCount == 1
+                    && blockedSelection.ListeningMask == 1
+                    && blockedSelection.ResizeFeedback.Contains("clear space"),
+                "automatic sizing keeps the new function and existing size when expansion is blocked"
+            );
+            state.SetPartState(partId, small);
             UnityEngine.Object.DestroyImmediate(obstacle);
             obstacle = null;
             Act(Request(2));
@@ -352,6 +370,52 @@ internal static class CallSizingAuthorityChecks
                     && ((FunctionCallState)part.State).RuntimeJson == original.RuntimeJson,
                 "resize clearance checks preserve mount and private state"
             );
+
+            foreach (int inputs in new[] { 0, 2, 1, 3 })
+            {
+                var selected = Select(inputs, out Guid selectedId);
+                check(
+                    selected.SelectedFunctionId == selectedId.ToString("N")
+                        && selected.InputCount == Math.Max(1, inputs)
+                        && selected.ListeningMask == (1 << inputs) - 1
+                        && selected.InstanceId == original.InstanceId
+                        && selected.ResizeFeedback == "",
+                    "automatic sizing binds a clear Call to the final size for " + inputs + " parameters"
+                );
+            }
+
+            Act(Request(1));
+            var overridden = (FunctionCallState)part.State;
+            check(
+                overridden.InputCount == 1 && overridden.Slot2 != "" && overridden.ListeningMask == 1,
+                "manual sizing still exposes one input without discarding the hidden parameter binding"
+            );
+
+            var authoritativeConnections = ServiceLocator.GetService<ConnectionsServerTracker>();
+            var output = new EntityPartSocket(shipId, partId, 3);
+            var outputCable = new SocketConnection(
+                output,
+                new EntityPartSocket(shipId, 999, 0),
+                SocketConnectionType.Cable
+            );
+            authoritativeConnections.SignalConnectionGroups.OnConnectionCreate(outputCable);
+            try
+            {
+                var wiredSelection = Select(3, out Guid wiredId);
+                check(
+                    wiredSelection.SelectedFunctionId == wiredId.ToString("N")
+                        && wiredSelection.InputCount == 1
+                        && wiredSelection.ListeningMask == 1
+                        && authoritativeConnections.IsSocketPhysicallyOccupied(output),
+                    "automatic sizing commits selection without disturbing an output-only cable"
+                );
+            }
+            finally
+            {
+                authoritativeConnections.SignalConnectionGroups.OnConnectionDelete(outputCable);
+            }
+
+            state.SetPartState(partId, original);
 
             // The stock small housing genuinely extends a little to the left
             // of the stretched original. A shrink still cannot enter NEW solid
