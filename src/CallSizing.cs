@@ -34,6 +34,9 @@ internal static class CallSizing
     internal const string ActionPrefix = "resize-call:";
     private static readonly PartSettings[] Variants = new PartSettings[4];
     private static readonly Collider[] Overlaps = new Collider[64];
+    private static readonly Collider[] SupportOverlaps = new Collider[64];
+    private const float MaximumSupportDepth = .012f;
+    private const float CoplanarTolerance = .001f;
     private static readonly FieldInfo Settings = AccessTools.Field(typeof(StatefulPart), "<Settings>k__BackingField");
     private static readonly FieldInfo ColliderParts = AccessTools.Field(
         typeof(ShipStatefulColliders),
@@ -192,13 +195,14 @@ internal static class CallSizing
         }
 
         Physics.SyncTransforms();
+        float supportFace = float.NaN;
         for (int axis = 0; axis < 3; axis++)
         {
             if (min[axis] < oldMin[axis])
             {
                 Vector3 end = max;
                 end[axis] = Mathf.Min(max[axis], oldMin[axis]);
-                if (!ClearRegion(ship, part, min, end, ownInteractions, supportBody, out error))
+                if (!ClearRegion(ship, part, min, end, ownInteractions, supportBody, ref supportFace, out error))
                 {
                     return false;
                 }
@@ -209,7 +213,7 @@ internal static class CallSizing
             {
                 Vector3 start = min;
                 start[axis] = Mathf.Max(min[axis], oldMax[axis]);
-                if (!ClearRegion(ship, part, start, max, ownInteractions, supportBody, out error))
+                if (!ClearRegion(ship, part, start, max, ownInteractions, supportBody, ref supportFace, out error))
                 {
                     return false;
                 }
@@ -231,6 +235,7 @@ internal static class CallSizing
         Vector3 max,
         Transform ownInteractions,
         BoxCollider supportBody,
+        ref float supportFace,
         out string error
     )
     {
@@ -249,9 +254,15 @@ internal static class CallSizing
         Vector3 scale = root.lossyScale;
         scale = new Vector3(Mathf.Abs(scale.x), Mathf.Abs(scale.y), Mathf.Abs(scale.z));
         Vector3 half = Vector3.Scale(localHalf - Vector3.one * skin, scale);
-        int hits = ship
-            .InteriorColliders.scene.GetPhysicsScene()
-            .OverlapBox(center, half, Overlaps, root.rotation * part.LocalRotation, ~0, QueryTriggerInteraction.Ignore);
+        PhysicsScene scene = ship.InteriorColliders.scene.GetPhysicsScene();
+        int hits = scene.OverlapBox(
+            center,
+            half,
+            Overlaps,
+            root.rotation * part.LocalRotation,
+            ~0,
+            QueryTriggerInteraction.Ignore
+        );
         if (hits >= Overlaps.Length)
         {
             error = "Not enough clear space to change this Call's size.";
@@ -280,31 +291,33 @@ internal static class CallSizing
             }
             // Stock 100 mm hull colliders extend past their visible surface.
             // Saved mounts can already overlap that supporting plane by 10 mm.
-            // Preserve only this exact existing bottom-face support contact:
-            // same ship's native hull box, separation along the part's +Y,
-            // and no deeper requested back face (gated above). Side/ceiling,
-            // foreign hull and previously untouched geometry still obstruct.
+            // Preserve existing backing contact, including a flush continuation
+            // across separately generated tile colliders.
             Vector3 mountNormal = root.rotation * part.LocalRotation * Vector3.up;
-            if (
-                supportBody != null
-                && collider is BoxCollider
-                && collider.transform.IsChildOf(root)
-                && collider.GetComponentInParent<ShipHullColliderChunk>() != null
-                && Mathf.Abs(Vector3.Dot(collider.transform.forward, mountNormal)) > .9999f
-                && Physics.ComputePenetration(
-                    supportBody,
-                    supportBody.transform.position,
-                    supportBody.transform.rotation,
-                    collider,
-                    collider.transform.position,
-                    collider.transform.rotation,
-                    out var direction,
-                    out _
-                )
-                && Vector3.Dot(direction, mountNormal) > .9999f
-            )
+            if (supportBody != null && collider is BoxCollider hull && IsBackingHull(hull, root, mountNormal))
             {
-                continue;
+                if (HasMountContact(supportBody, hull, mountNormal, out _))
+                {
+                    continue;
+                }
+
+                Vector3 origin = supportBody.transform.position;
+                Vector3 backing = root.TransformPoint(
+                    part.LocalPosition + part.LocalRotation * new Vector3(0, min.y, 0)
+                );
+                float face = HullFace(hull, origin, mountNormal);
+                if (face - Vector3.Dot(backing - origin, mountNormal) <= MaximumSupportDepth)
+                {
+                    if (float.IsNaN(supportFace))
+                    {
+                        supportFace = FindSupportFace(scene, supportBody, root, mountNormal);
+                    }
+
+                    if (Mathf.Abs(face - supportFace) <= CoplanarTolerance)
+                    {
+                        continue;
+                    }
+                }
             }
 
             blocked = true;
@@ -315,6 +328,62 @@ internal static class CallSizing
         }
 
         return !blocked;
+    }
+
+    private static bool IsBackingHull(BoxCollider box, Transform root, Vector3 normal) =>
+        box.transform.IsChildOf(root)
+        && box.GetComponentInParent<ShipHullColliderChunk>() != null
+        && Mathf.Abs(Vector3.Dot(box.transform.forward, normal)) > .9999f;
+
+    private static bool HasMountContact(BoxCollider body, BoxCollider hull, Vector3 normal, out float depth) =>
+        Physics.ComputePenetration(
+            body,
+            body.transform.position,
+            body.transform.rotation,
+            hull,
+            hull.transform.position,
+            hull.transform.rotation,
+            out Vector3 separation,
+            out depth
+        )
+        && Vector3.Dot(separation, normal) > .9999f;
+
+    private static float HullFace(BoxCollider hull, Vector3 origin, Vector3 normal) =>
+        Vector3.Dot(hull.transform.TransformPoint(hull.center) - origin, normal)
+        + Mathf.Abs(Vector3.Dot(hull.transform.TransformVector(Vector3.forward * (hull.size.z * .5f)), normal));
+
+    private static float FindSupportFace(PhysicsScene scene, BoxCollider body, Transform root, Vector3 normal)
+    {
+        Transform t = body.transform;
+        Vector3 origin = t.position;
+        Vector3 half = Vector3.Scale(body.size * .5f, Vector3.Max(t.lossyScale, -t.lossyScale));
+        int hits = scene.OverlapBox(
+            t.TransformPoint(body.center),
+            half,
+            SupportOverlaps,
+            t.rotation,
+            ~0,
+            QueryTriggerInteraction.Ignore
+        );
+        float face = float.PositiveInfinity;
+        if (hits < SupportOverlaps.Length)
+        {
+            for (int i = 0; i < hits; i++)
+            {
+                if (
+                    SupportOverlaps[i] is BoxCollider hull
+                    && IsBackingHull(hull, root, normal)
+                    && HasMountContact(body, hull, normal, out float depth)
+                    && depth <= MaximumSupportDepth
+                )
+                {
+                    face = Mathf.Min(face, HullFace(hull, origin, normal));
+                }
+            }
+        }
+
+        Array.Clear(SupportOverlaps, 0, hits);
+        return face;
     }
 
     internal static void Install()
