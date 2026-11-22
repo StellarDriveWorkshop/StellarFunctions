@@ -1,6 +1,6 @@
 # StellarFunctions
 
-**StellarDrive Functions 1.0.0** — reusable ship circuits
+**StellarDrive Functions 1.0.1** — reusable ship circuits
 for [StellarDrive](https://store.steampowered.com/app/4689730/) Demo 0.8.3.
 
 StellarFunctions adds programmable function parts that turn ship wiring into
@@ -49,6 +49,10 @@ on their faces; long names shrink to a readable size, then scroll.
   expected module identity; other builds leave the adapter unavailable.
 
 ## Version compatibility
+
+In 1.0.1, the output is opposite the first input at every Call size. Existing
+two- and three-input Calls move their output by one slot. Check any parts that
+touch those outputs directly after updating. The output keeps socket ID 3.
 
 1.0.0 is an intentional clean-break release: clients and servers running
 **different** StellarFunctions builds are **not** compatible. Upgrade the

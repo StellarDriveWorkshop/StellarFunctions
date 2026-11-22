@@ -463,7 +463,8 @@ internal static class CallSizing
             var mesh = variant.part.GetComponentsInChildren<MeshFilter>(true).Single(m => m.sharedMesh == oldMesh);
             var offset = new Vector3(count == 1 ? -.125f : 0, 0, 0);
             mesh.sharedMesh = source.sharedMesh;
-            mesh.transform.localScale = Vector3.one;
+            // Mirror the wide donor's raised shoulder onto the output side of input 1.
+            mesh.transform.localScale = count == 1 ? Vector3.one : new Vector3(-1f, 1f, 1f);
             mesh.transform.localPosition = offset;
             mesh.GetComponent<MeshRenderer>().sharedMaterials = source.GetComponent<MeshRenderer>().sharedMaterials;
             var bounds = variant.part.GetComponent<ShipPartBounds>();
@@ -475,15 +476,7 @@ internal static class CallSizing
                 if (socket.Id != 3 && socket.Id >= count)
                 {
                     UnityEngine.Object.DestroyImmediate(socket.gameObject);
-                    continue;
                 }
-                Vector3 position = socket.transform.localPosition;
-                if (socket.Id == 3)
-                {
-                    position.x = count == 1 ? -.125f : .125f;
-                }
-
-                socket.transform.localPosition = position;
             }
             foreach (var screen in variant.part.GetComponentsInChildren<Support.ScreenSurface>(true))
             {
