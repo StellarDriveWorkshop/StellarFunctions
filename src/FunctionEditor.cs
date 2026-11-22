@@ -1203,8 +1203,7 @@ internal static class FunctionEditor
             : 218;
         var root = Node(parent, "Socket diagram", typeof(LayoutElement));
         root.GetComponent<LayoutElement>().preferredHeight = 230;
-        // Keep the established menu preview: active inputs form a left column,
-        // and the unchanged output stays centered on the right.
+        // The diagram rotates the case: the output sits opposite input 1.
         var housing = Node(root.transform, "Call housing", typeof(Image));
         housing.GetComponent<Image>().color = new Color(.72f, .77f, .8f);
         Place(housing.transform, new Vector2(.56f, .5f), new Vector2(count == 1 ? 100 : 116, modelHeight));
@@ -1232,9 +1231,10 @@ internal static class FunctionEditor
         nr.offsetMin = new Vector2(8, 8);
         nr.offsetMax = new Vector2(-8, -8);
         var labels = new[] { call.Input0Label, call.Input1Label, call.Input2Label };
+        float firstSocketY = .5f + (count - 1) * .145f;
         for (int i = 0; i < count; i++)
         {
-            float y = .5f + ((count - 1) / 2f - i) * .29f;
+            float y = firstSocketY - i * .29f;
             var socket = Node(root.transform, "Input " + (i + 1) + " socket", typeof(Image));
             socket.GetComponent<Image>().color =
                 (call.ListeningMask & (1 << i)) != 0 ? new Color(.3f, .9f, 1) : new Color(.25f, .3f, .32f);
@@ -1248,9 +1248,9 @@ internal static class FunctionEditor
         }
         var output = Node(root.transform, "Output socket", typeof(Image));
         output.GetComponent<Image>().color = new Color(.3f, .9f, 1);
-        Place(output.transform, new Vector2(.655f, .5f), new Vector2(22, 30));
+        Place(output.transform, new Vector2(.655f, firstSocketY), new Vector2(22, 30));
         var outLabel = Label(root.transform, "Output");
-        Place(outLabel.transform, new Vector2(.83f, .5f), new Vector2(150, 40));
+        Place(outLabel.transform, new Vector2(.83f, firstSocketY), new Vector2(150, 40));
     }
 
     private static void Place(Transform transform, Vector2 anchor, Vector2 size)

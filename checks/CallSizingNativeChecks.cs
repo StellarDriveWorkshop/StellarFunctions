@@ -223,6 +223,12 @@ internal static class CallSizingNativeChecks
             Mathf.Abs(sockets.Single(s => s.Id == 0).transform.localPosition.x - -.125f) < .001f,
             $"Call size {count} keeps first input socket at x=-0.125"
         );
+        Vector3 output = sockets.Single(s => s.Id == 3).transform.localPosition;
+        Vector3 unaryOutput = Variant(1).GetSockets().Single(s => s.Id == 3).transform.localPosition;
+        check(
+            Mathf.Abs(output.x + .125f) < .001f && (output - unaryOutput).sqrMagnitude < .000001f,
+            $"Call size {count} places output socket 3 in the shared first slot"
+        );
         var donor = Resources.FindObjectsOfTypeAll<PartSettings>().Single(s => s.id == (count == 1 ? 54 : 45));
         string path = count == 1 ? "Visuals/UnaryMathGate" : "Visuals/MathGate";
         var donorFilter = donor.part.transform.Find(path).GetComponent<MeshFilter>();
@@ -232,6 +238,14 @@ internal static class CallSizingNativeChecks
         check(
             ReferenceEquals(variantFilter.sharedMesh, donorFilter.sharedMesh),
             $"Call size {count} uses native donor {donor.id} mesh"
+        );
+        float expectedScaleX =
+            count == 1 ? 1f
+            : count == 2 ? -1f
+            : -1.6f;
+        check(
+            Mathf.Approximately(variantFilter.transform.localScale.x, expectedScaleX),
+            $"Call size {count} orients the housing's raised shoulder toward the output"
         );
         var donorRenderer = donorFilter.GetComponent<MeshRenderer>();
         var variantRenderer = variantFilter.GetComponent<MeshRenderer>();
