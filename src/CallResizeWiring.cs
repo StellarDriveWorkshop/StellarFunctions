@@ -25,9 +25,10 @@ internal static class CallResizeWiring
         public string Token;
         public int InputCount;
         public byte Inputs;
+        public byte DirectInputs;
     }
 
-    private sealed record Plan(SocketConnection[] Connections, CableData[] Removed, byte Inputs);
+    private sealed record Plan(SocketConnection[] Connections, CableData[] Removed, byte Inputs, byte DirectInputs);
 
     private sealed record Pending(
         uint ShipId,
@@ -45,6 +46,8 @@ internal static class CallResizeWiring
 
     internal static void Reset() => Offers.Clear();
 
+    internal static void ClearOffer(uint playerId) => Offers.Remove(playerId);
+
     internal static bool IsValidConfirmation(Confirmation confirmation) =>
         confirmation == null
         || (
@@ -52,6 +55,7 @@ internal static class CallResizeWiring
             && token != Guid.Empty
             && confirmation.InputCount is 1 or 2
             && confirmation.Inputs != 0
+            && (confirmation.DirectInputs & ~confirmation.Inputs) == 0
             && (confirmation.Inputs & ~(7 & ~((1 << confirmation.InputCount) - 1))) == 0
         );
 
@@ -81,24 +85,41 @@ internal static class CallResizeWiring
         int count
     )
     {
+        FunctionCallState next = Prepare(ship, part, state, count, playerId, session);
+        if (next != state)
+        {
+            ship.UpdatePartState(part.Id, next);
+            if (next.InputCount != state.InputCount)
+            {
+                CallSizing.InvalidateAfterResize();
+            }
+        }
+    }
+
+    internal static FunctionCallState Prepare(
+        TrackedShipServer ship,
+        StatefulPart part,
+        FunctionCallState state,
+        int count,
+        uint playerId,
+        string session
+    )
+    {
         Offers.Remove(playerId);
         if (count == state.InputCount)
         {
-            CallSizing.Reply(ship, part, "");
-            return;
+            return state with { ResizeFeedback = "" };
         }
 
         string problem = Inspect(ship, part, state, count, out var plan);
         if (problem != null)
         {
-            CallSizing.Reply(ship, part, problem);
-            return;
+            return state with { ResizeFeedback = problem };
         }
 
         if (plan.Inputs == 0)
         {
-            Resize(ship, part, state, count);
-            return;
+            return CallSizing.AtSize(state, count);
         }
 
         float now = Time.realtimeSinceStartup;
@@ -119,11 +140,12 @@ internal static class CallResizeWiring
                 Token = Guid.NewGuid().ToString("N"),
                 InputCount = count,
                 Inputs = plan.Inputs,
+                DirectInputs = plan.DirectInputs,
             },
             plan,
             now + ConfirmationSeconds
         );
-        CallSizing.Reply(ship, part, "");
+        return state with { ResizeFeedback = "" };
     }
 
     internal static bool HandleConfirmation(
@@ -167,9 +189,20 @@ internal static class CallResizeWiring
             CallSizing.Reply(ship, part, problem);
             return true;
         }
-        if (plan.Inputs != pending.Plan.Inputs || !plan.Connections.SequenceEqual(pending.Plan.Connections))
+        if (
+            plan.Inputs != pending.Plan.Inputs
+            || plan.DirectInputs != pending.Plan.DirectInputs
+            || !plan.Connections.SequenceEqual(pending.Plan.Connections)
+        )
         {
             CallSizing.Reply(ship, part, Stale);
+            return true;
+        }
+
+        if (plan.Removed.Length == 0)
+        {
+            // The geometry refresh drops the confirmed direct contacts itself.
+            Resize(ship, part, state, count);
             return true;
         }
 
@@ -204,10 +237,10 @@ internal static class CallResizeWiring
 
         if (
             part.State is not FunctionCallState live
-            || live.InstanceId != state.InstanceId
-            || live.InputCount != state.InputCount
-            || Inspect(ship, part, live, count, out var remaining, checkContacts: true) != null
-            || remaining.Inputs != 0
+            || !Matches(pending, ship.Id, part.Id, live)
+            || Inspect(ship, part, live, count, out var remaining) != null
+            || remaining.Inputs != plan.DirectInputs
+            || remaining.DirectInputs != plan.DirectInputs
             || !remaining.Connections.SequenceEqual(
                 plan.Connections.Select(edge => plan.Removed.Any(cable => cable.Id == edge.CableId) ? default : edge)
             )
@@ -235,8 +268,7 @@ internal static class CallResizeWiring
         StatefulPart part,
         FunctionCallState state,
         int count,
-        out Plan plan,
-        bool checkContacts = false
+        out Plan plan
     )
     {
         plan = null;
@@ -256,7 +288,7 @@ internal static class CallResizeWiring
         var topology = new SocketConnection[4];
         var removed = new List<CableData>(2);
         byte inputs = 0;
-        bool wired = false;
+        byte directInputs = 0;
         for (byte id = 0; id <= 3; id++)
         {
             var socket = new EntityPartSocket(ship.Id, part.Id, id);
@@ -269,64 +301,123 @@ internal static class CallResizeWiring
                 continue;
             }
 
-            var wire = edges.FirstOrDefault();
             string label = id == 3 ? "Output" : "Input " + (id + 1);
-            if (edges.Count != 1 || wire.Type != SocketConnectionType.Cable)
+            if (edges.Count != 1)
             {
-                return label + " has a direct or unsupported connection. Disconnect it before resizing.";
+                return label + " has unsupported or ambiguous wiring. Disconnect it before resizing.";
             }
-            if (
-                cables == null
-                || wire.CableId == 0
-                || !wire.SocketA.HasValue
-                || !wire.SocketB.HasValue
-                || !cables.TryGetCableState(wire.CableId, out var cable)
-                || cable.Type != CableType.Signal
-            )
+            var wire = edges.First();
+            if (wire.Type == SocketConnectionType.Cable && (!wire.SocketA.HasValue || !wire.SocketB.HasValue))
             {
                 return label + " needs a fully plugged signal cable before resizing.";
             }
-
-            var data = new CableData { Id = wire.CableId, State = cable };
-            EntityPartSocket peer = wire.SocketA.Value == socket ? wire.SocketB.Value : wire.SocketA.Value;
             if (
-                !data.ToSocketConnection().Equals(wire)
+                !wire.SocketA.HasValue
+                || !wire.SocketB.HasValue
                 || (wire.SocketA.Value != socket && wire.SocketB.Value != socket)
                 || (id != 3 && id >= state.InputCount)
+            )
+            {
+                return label + " has stale or ambiguous wiring. Disconnect it before resizing.";
+            }
+            EntityPartSocket peer = wire.SocketA.Value == socket ? wire.SocketB.Value : wire.SocketA.Value;
+            if (
+                peer == socket
+                || (
+                    wire.Type == SocketConnectionType.Touching
+                    && peer.EntityId == ship.Id
+                    && peer.Socket.PartId == part.Id
+                )
                 || !HasLivePeer(connections, peer, wire)
             )
             {
                 return label + " has stale or ambiguous wiring. Disconnect it before resizing.";
             }
 
-            wired = true;
-            topology[id] = wire;
-            if (id != 3 && id >= count)
+            if (wire.Type == SocketConnectionType.Cable)
             {
-                inputs |= (byte)(1 << id);
-                if (!removed.Any(item => item.Id == wire.CableId))
+                if (
+                    cables == null
+                    || wire.CableId == 0
+                    || !cables.TryGetCableState(wire.CableId, out var cable)
+                    || cable.Type != CableType.Signal
+                )
                 {
-                    removed.Add(data);
+                    return label + " needs a fully plugged signal cable before resizing.";
                 }
+                var data = new CableData { Id = wire.CableId, State = cable };
+                if (!data.ToSocketConnection().Equals(wire))
+                {
+                    return label + " has stale or ambiguous wiring. Disconnect it before resizing.";
+                }
+                if (id != 3 && id >= count)
+                {
+                    inputs |= (byte)(1 << id);
+                    if (!removed.Any(item => item.Id == wire.CableId))
+                    {
+                        removed.Add(data);
+                    }
+                }
+            }
+            else if (wire.Type == SocketConnectionType.Touching)
+            {
+                if (id != 3 && id >= count)
+                {
+                    inputs |= (byte)(1 << id);
+                    directInputs |= (byte)(1 << id);
+                }
+            }
+            else
+            {
+                return label + " has unsupported wiring. Disconnect it before resizing.";
+            }
+            topology[id] = wire;
+        }
+
+        var preview = connections.FindTouchingSocketPairs(
+            ship.Id,
+            CallSizing.Variant(count),
+            part.Placement,
+            new PartContext(ship.Id, part.Id)
+        );
+        var seen = new bool[4];
+        foreach (var pair in preview)
+        {
+            byte id = pair.Current.Socket.Socket.SocketId;
+            if (pair.Current.Type != CableType.Signal || id > 3 || seen[id])
+            {
+                return "That size would make a new direct connection. Move the nearby part before resizing.";
+            }
+            var edge = topology[id];
+            var local = new EntityPartSocket(ship.Id, part.Id, id);
+            if (
+                edge.Type != SocketConnectionType.Touching
+                || !edge.SocketA.HasValue
+                || !edge.SocketB.HasValue
+                || !(
+                    (edge.SocketA.Value == local && edge.SocketB.Value == pair.Other.Socket)
+                    || (edge.SocketB.Value == local && edge.SocketA.Value == pair.Other.Socket)
+                )
+            )
+            {
+                return "That size would make a new direct connection. Move the nearby part before resizing.";
+            }
+            seen[id] = true;
+        }
+        for (byte id = 0; id <= 3; id++)
+        {
+            if (
+                topology[id].SocketA.HasValue
+                && topology[id].Type == SocketConnectionType.Touching
+                && (id == 3 || id < count)
+                && !seen[id]
+            )
+            {
+                return "A retained direct connection could not be verified. Check the wiring and try again.";
             }
         }
 
-        if (
-            (wired || checkContacts)
-            && connections
-                .FindTouchingSocketPairs(
-                    ship.Id,
-                    CallSizing.Variant(count),
-                    part.Placement,
-                    new PartContext(ship.Id, part.Id)
-                )
-                .Count != 0
-        )
-        {
-            return "That size would make a new direct connection. Move the nearby part before resizing.";
-        }
-
-        plan = new Plan(topology, removed.ToArray(), inputs);
+        plan = new Plan(topology, removed.ToArray(), inputs, directInputs);
         return null;
     }
 
@@ -344,7 +435,7 @@ internal static class CallResizeWiring
             && part.Settings.part.GetComponentsInChildren<SocketObject>()
                 .Any(other => other.Type == CableType.Signal && other.Id == socket.Socket.SocketId)
             && connections.SignalConnectionGroups.TryGetSocketConnections(socket, out var edges)
-            && edges.Count == 1
-            && edges.Contains(wire);
+            && edges.Contains(wire)
+            && edges.Count(edge => edge.Type != SocketConnectionType.RelayedByPart) == 1;
     }
 }

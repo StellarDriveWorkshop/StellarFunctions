@@ -94,20 +94,29 @@ public sealed class CallPartBehaviour : PartBehaviour
 
             return;
         }
-        bool confirmed =
-            action == "confirm-rebind:" + state.PendingFunctionId && !string.IsNullOrEmpty(state.PendingFunctionId);
-        if (
-            !confirmed
-            && (action == null || !action.StartsWith(ClientCallInteraction.SelectAction, StringComparison.Ordinal))
-        )
+        const string confirmRebind = "confirm-rebind:";
+        bool confirmed = action.StartsWith(confirmRebind, StringComparison.Ordinal);
+        if (!confirmed && !action.StartsWith(ClientCallInteraction.SelectAction, StringComparison.Ordinal))
         {
             return;
         }
 
-        string requested = confirmed
-            ? state.PendingFunctionId
-            : action.Substring(ClientCallInteraction.SelectAction.Length);
-        if (!Guid.TryParseExact(requested, "N", out var requestedId) || requestedId == Guid.Empty)
+        // The editor session scopes any resize offer created by this selection.
+        string[] fields = action
+            .Substring(confirmed ? confirmRebind.Length : ClientCallInteraction.SelectAction.Length)
+            .Split(':');
+        if (
+            fields.Length != 2
+            || !Guid.TryParseExact(fields[0], "N", out var requestedId)
+            || requestedId == Guid.Empty
+            || !Guid.TryParseExact(fields[1], "N", out var session)
+            || session == Guid.Empty
+        )
+        {
+            return;
+        }
+        string requested = requestedId.ToString("N");
+        if (confirmed && requested != state.PendingFunctionId)
         {
             return;
         }
@@ -120,6 +129,7 @@ public sealed class CallPartBehaviour : PartBehaviour
             return;
         }
 
+        CallResizeWiring.ClearOffer(player.Id);
         if (!confirmed && next.Id == state.SelectedFunctionId)
         {
             var sameShips = ServiceLocator.GetService<ShipsServerTracker>();
@@ -169,7 +179,7 @@ public sealed class CallPartBehaviour : PartBehaviour
             && definition.Error == null
         )
         {
-            ApplySelection(liveShip, livePart, state, definition.Graph);
+            ApplySelection(liveShip, livePart, state, definition.Graph, player.Id, session.ToString("N"));
         }
     }
 
@@ -177,7 +187,9 @@ public sealed class CallPartBehaviour : PartBehaviour
         TrackedShipServer ship,
         StatefulPart part,
         FunctionCallState state,
-        FunctionGraph graph
+        FunctionGraph graph,
+        uint playerId,
+        string session
     )
     {
         FunctionCallState selected = state with
@@ -193,7 +205,7 @@ public sealed class CallPartBehaviour : PartBehaviour
         int count = Math.Max(1, graph.ParameterCount);
         if (count != state.InputCount)
         {
-            selected = CallSizing.PrepareResize(ship, part, selected, count);
+            selected = CallResizeWiring.Prepare(ship, part, selected, count, playerId, session);
         }
 
         // Bind using the final socket count, then replicate the size and bindings together.

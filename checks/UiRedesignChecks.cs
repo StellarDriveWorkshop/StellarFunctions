@@ -665,7 +665,12 @@ internal static class UiRedesignChecks
                 "merely opening menus/dropdown sends no action and leaves selection unchanged"
             );
             dropdown.value = 2;
-            Check(Sent == "select-function:" + OtherId, "actual dropdown callback sends the chosen stable identity");
+            var directoryType = typeof(FunctionCallState).Assembly.GetType("StellarFunctions.FunctionDirectory");
+            string session = (string)AccessTools.Property(directoryType, "Session").GetValue(null);
+            Check(
+                Guid.TryParseExact(session, "N", out _) && Sent == "select-function:" + OtherId + ":" + session,
+                "dropdown sends the chosen function and editor session"
+            );
             Check(
                 ((FunctionCallState)part.State).SelectedFunctionId == ChoiceId,
                 "client callback never mutates authoritative selection locally"
@@ -689,7 +694,10 @@ internal static class UiRedesignChecks
             buttons.Single(b => b.name == "Cancel function change").onClick.Invoke();
             Check(Sent == "cancel-rebind", "actual cancel callback sends cancellation only");
             buttons.Single(b => b.name == "Confirm function change").onClick.Invoke();
-            Check(Sent == "confirm-rebind:" + OtherId, "actual confirmation callback names the exact pending identity");
+            Check(
+                Sent == "confirm-rebind:" + OtherId + ":" + session,
+                "confirmation names the pending function and editor session"
+            );
             RenderCanvas(canvas, "call-confirmation-long-name", 1280, 720);
             part.State = ((FunctionCallState)part.State) with
             {
@@ -910,14 +918,22 @@ internal static class UiRedesignChecks
         );
         CountButton(1).onClick.Invoke();
         field.FieldType.GetField("Token").SetValue(offer, "1123456789abcdef0123456789abcdef");
+        field.FieldType.GetField("Inputs").SetValue(offer, (byte)6);
+        field.FieldType.GetField("DirectInputs").SetValue(offer, (byte)2);
         Refresh(true);
+        var text = CallRoot().GetComponentsInChildren<TMP_Text>(true);
+        Check(
+            text.Any(t => t.text.Contains("Input 2 [DISCONNECT]"))
+                && text.Any(t => t.text.Contains("Input 3 [REMOVE CABLE]")),
+            "mixed losses identify the direct contact and cable separately"
+        );
         var confirm = CallRoot()
             .GetComponentsInChildren<Button>(true)
-            .Single(b => b.GetComponentInChildren<TMP_Text>()?.text == "Remove cable from Input 3 and resize");
+            .Single(b => b.GetComponentInChildren<TMP_Text>()?.text == "Disconnect Input 2, Input 3 and resize");
         confirm.onClick.Invoke();
         Check(
             Sent == "confirm-call-resize:1123456789abcdef0123456789abcdef" && State().InputCount == 3,
-            "confirmation names the cable, sends the exact token and waits for authoritative size"
+            "mixed confirmation names both inputs, sends the exact token and waits for authoritative size"
         );
         SetCount(1);
         SetDirectory(true);

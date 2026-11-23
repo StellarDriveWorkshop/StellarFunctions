@@ -57,6 +57,7 @@ internal static class FunctionDirectory
     private static long _sequence,
         _accepted;
     internal static Snapshot Current { get; private set; }
+    internal static string Session => _session;
     internal static long LastRequestedSequence => _sequence;
     internal static string Status => StatusAt(UnityEngine.Time.unscaledTime);
 

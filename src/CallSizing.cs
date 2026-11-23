@@ -66,25 +66,6 @@ internal static class CallSizing
         + ":"
         + session;
 
-    internal static bool HasTerminalConnections(PartContext part)
-    {
-        var connections = ServiceLocator.GetService<ConnectionsServerTracker>();
-        if (connections == null)
-        {
-            return true; // Unknown authority is never permission.
-        }
-
-        for (byte i = 0; i < 4; i++)
-        {
-            if (connections.IsSocketPhysicallyOccupied(new EntityPartSocket(part.ShipId, part.PartId, i)))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     internal static bool Handle(
         TrackedShipServer ship,
         StatefulPart part,
@@ -125,22 +106,6 @@ internal static class CallSizing
         {
             ship.UpdatePartState(part.Id, state with { ResizeFeedback = message });
         }
-    }
-
-    internal static FunctionCallState PrepareResize(
-        TrackedShipServer ship,
-        StatefulPart part,
-        FunctionCallState state,
-        int count
-    )
-    {
-        if (HasTerminalConnections(new PartContext(ship.Id, part.Id)))
-        {
-            return state with { ResizeFeedback = "Automatic sizing requires an unwired Call." };
-        }
-
-        string problem = SizeProblem(ship, part, state, count);
-        return problem == null ? AtSize(state, count) : state with { ResizeFeedback = problem };
     }
 
     internal static string SizeProblem(TrackedShipServer ship, StatefulPart part, FunctionCallState state, int count)
@@ -650,8 +615,8 @@ internal static class CallSizing
     // the old geometry would survive as ghost connections (issue #1). Delete
     // them for every socket id any Call variant can expose, then let the
     // native add path recreate the pairs that still coincide. Cable
-    // connections are never removed here; resize already refuses wired
-    // terminals.
+    // connections are managed by the native cable tracker before the geometry
+    // changes.
     private static void DropStaleTouching(ConnectionsTracker tracker, uint ship, StatefulPart part)
     {
         var map = (ConnectionGroupMap)SignalMap.GetValue(tracker);

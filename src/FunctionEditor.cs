@@ -1053,7 +1053,12 @@ internal static class FunctionEditor
                 if (index > 0 && index <= options.Length)
                 {
                     var chosen = options[index - 1];
-                    if (ContentActions.Send(part, ClientCallInteraction.SelectAction + chosen.Id))
+                    if (
+                        ContentActions.Send(
+                            part,
+                            ClientCallInteraction.SelectAction + chosen.Id + ":" + FunctionDirectory.Session
+                        )
+                    )
                     {
                         _selectionRequested = chosen.Id;
                         _selectionAt = Time.unscaledTime;
@@ -1090,11 +1095,19 @@ internal static class FunctionEditor
         if (!string.IsNullOrEmpty(call.PendingFunctionId))
         {
             Label(_body, "Change to " + call.PendingFunctionName + "?");
-            Label(_body, "Keeps cables; resets input mapping and private Memory.");
+            Label(
+                _body,
+                "Resets input mapping and private Memory. Any disconnections require a separate confirmation."
+            );
             Button(
                 _body,
                 "Confirm function change",
-                () => SendAction(part, "confirm-rebind:" + call.PendingFunctionId, "Applying function change…")
+                () =>
+                    SendAction(
+                        part,
+                        "confirm-rebind:" + call.PendingFunctionId + ":" + FunctionDirectory.Session,
+                        "Applying function change…"
+                    )
             );
             Button(
                 _body,
@@ -1215,9 +1228,17 @@ internal static class FunctionEditor
             var affected = Enumerable.Range(1, 3).Where(i => (confirmation.Inputs & (1 << (i - 1))) != 0).ToArray();
             string inputs = string.Join(", ", affected.Select(i => "Input " + i));
             string action =
-                "Remove " + (affected.Length == 1 ? "cable from " : "cables from ") + inputs + " and resize";
+                confirmation.DirectInputs != 0
+                    ? "Disconnect " + inputs + " and resize"
+                    : "Remove " + (affected.Length == 1 ? "cable from " : "cables from ") + inputs + " and resize";
             string target = confirmation.InputCount == 1 ? "1 input" : confirmation.InputCount + " inputs";
-            var warning = Label(_body, action + " to " + target + "?");
+            string question = action + " to " + target + "?";
+            if (confirmation.DirectInputs != 0 && confirmation.DirectInputs != confirmation.Inputs)
+            {
+                int cabled = affected.Single(i => (confirmation.DirectInputs & (1 << (i - 1))) == 0);
+                question += " The cable on Input " + cabled + " will be removed.";
+            }
+            var warning = Label(_body, question);
             warning.color = new Color(1, .8f, .2f);
             warning.textWrappingMode = TextWrappingModes.Normal;
             warning.GetComponent<LayoutElement>().preferredHeight = 60;
@@ -1326,11 +1347,11 @@ internal static class FunctionEditor
         nr.offsetMax = new Vector2(-8, -8);
         var labels = new[] { call.Input0Label, call.Input1Label, call.Input2Label };
         float firstSocketY = .5f + (count - 1) * .145f;
-        byte affectedInputs = CurrentResizeOffer()?.Inputs ?? 0;
+        var confirmation = CurrentResizeOffer();
         for (int i = 0; i < count; i++)
         {
             float y = firstSocketY - i * .29f;
-            bool affected = (affectedInputs & (1 << i)) != 0;
+            bool affected = ((confirmation?.Inputs ?? 0) & (1 << i)) != 0;
             if (affected)
             {
                 var outline = Node(root.transform, "Input " + (i + 1) + " disconnect highlight", typeof(Image));
@@ -1341,10 +1362,11 @@ internal static class FunctionEditor
             socket.GetComponent<Image>().color =
                 (call.ListeningMask & (1 << i)) != 0 ? new Color(.3f, .9f, 1) : new Color(.25f, .3f, .32f);
             Place(socket.transform, new Vector2(.465f, y), new Vector2(22, 30));
-            var label = Label(
-                root.transform,
-                "Input " + (i + 1) + (affected ? " [REMOVE CABLE]   " : "   ") + labels[i]
-            );
+            string loss =
+                !affected ? ""
+                : (confirmation.DirectInputs & (1 << i)) != 0 ? " [DISCONNECT]"
+                : " [REMOVE CABLE]";
+            var label = Label(root.transform, "Input " + (i + 1) + loss + "   " + labels[i]);
             label.fontSize = 20;
             label.alignment = TextAlignmentOptions.MidlineLeft;
             label.textWrappingMode = TextWrappingModes.Normal;
