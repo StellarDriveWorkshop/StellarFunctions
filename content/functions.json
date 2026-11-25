@@ -1,7 +1,7 @@
 {
   "id": "stellar-functions",
   "name": "StellarDrive Functions",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "parts": [
     {
       "id": 62006,

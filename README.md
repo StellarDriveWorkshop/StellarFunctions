@@ -1,6 +1,6 @@
 # StellarFunctions
 
-**StellarDrive Functions 1.0.1** — reusable ship circuits
+**StellarDrive Functions 2.0.0** — reusable ship circuits
 for [StellarDrive](https://store.steampowered.com/app/4689730/) Demo 0.8.3.
 
 StellarFunctions adds programmable function parts that turn ship wiring into
@@ -59,17 +59,15 @@ inputs use their parameter defaults, or zero if there is no default.
   `c5b09b8552c8982a98a5c74397016319338cbd1de788d17724761e3a6311ab5b` and
   expected module identity; other builds leave the adapter unavailable.
 
-## Version compatibility
+## Upgrading to 2.0.0
 
-In 1.0.1, the output is opposite the first input at every Call size. Existing
-two- and three-input Calls move their output by one slot. Check any parts that
-touch those outputs directly after updating. The output keeps socket ID 3.
+**Breaking change for existing circuits.** Calls with two or three inputs have
+updated models, and their output moves one slot to sit opposite Input 1. Direct
+connections at the old position will break. Back up your world before upgrading,
+then reconnect affected circuits and check for unintended connections at the new
+output position.
 
-1.0.0 is an intentional clean-break release: clients and servers running
-**different** StellarFunctions builds are **not** compatible. Upgrade the
-mod on the server and every client together. The save format is designed to
-retain function state. Back up your world before upgrading. The optional
-Ship Schematics integration has the separate version and hash limits above.
+Update the host or dedicated server and every joining client to the same build.
 
 ## Building from source
 
