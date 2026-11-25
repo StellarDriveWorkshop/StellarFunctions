@@ -279,6 +279,17 @@ internal static class CallSizingDefaultsChecks
         }
     }
 
+    internal static object SelectionGraph(Guid id, int inputCount)
+    {
+        object[] parameters = Enumerable
+            .Range(1, inputCount)
+            .Select(index => Parameter(Guid.NewGuid(), "Input " + index, index, index))
+            .ToArray();
+        Array nodes = Array.CreateInstance(AssemblyType("FunctionNode"), 1);
+        nodes.SetValue(Node("Constant"), 0);
+        return Graph(id, "Selection target", parameters, nodes, 0, "selection-target");
+    }
+
     private static object SumGraph(Guid id, Guid[] parameters, double?[] defaults)
     {
         object[] args = new object[3];

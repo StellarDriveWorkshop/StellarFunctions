@@ -665,7 +665,12 @@ internal static class UiRedesignChecks
                 "merely opening menus/dropdown sends no action and leaves selection unchanged"
             );
             dropdown.value = 2;
-            Check(Sent == "select-function:" + OtherId, "actual dropdown callback sends the chosen stable identity");
+            var directoryType = typeof(FunctionCallState).Assembly.GetType("StellarFunctions.FunctionDirectory");
+            string session = (string)AccessTools.Property(directoryType, "Session").GetValue(null);
+            Check(
+                Guid.TryParseExact(session, "N", out _) && Sent == "select-function:" + OtherId + ":" + session,
+                "dropdown sends the chosen function and editor session"
+            );
             Check(
                 ((FunctionCallState)part.State).SelectedFunctionId == ChoiceId,
                 "client callback never mutates authoritative selection locally"
@@ -689,7 +694,10 @@ internal static class UiRedesignChecks
             buttons.Single(b => b.name == "Cancel function change").onClick.Invoke();
             Check(Sent == "cancel-rebind", "actual cancel callback sends cancellation only");
             buttons.Single(b => b.name == "Confirm function change").onClick.Invoke();
-            Check(Sent == "confirm-rebind:" + OtherId, "actual confirmation callback names the exact pending identity");
+            Check(
+                Sent == "confirm-rebind:" + OtherId + ":" + session,
+                "confirmation names the pending function and editor session"
+            );
             RenderCanvas(canvas, "call-confirmation-long-name", 1280, 720);
             part.State = ((FunctionCallState)part.State) with
             {
@@ -767,9 +775,9 @@ internal static class UiRedesignChecks
             CallRoot().GetComponentsInChildren<Button>(true).Single(b => b.gameObject.name == "Inputs " + count);
         FunctionCallState State() => (FunctionCallState)content.Part.State;
         void SetCount(int count) => content.Part.State = State() with { InputCount = count, ResizeFeedback = "" };
-        void SetDirectory(bool? wired)
+        void SetDirectory(bool available)
         {
-            if (wired == null)
+            if (!available)
             {
                 setter.Invoke(null, new object[] { null });
                 return;
@@ -777,10 +785,9 @@ internal static class UiRedesignChecks
             Type snapshotType = directory.GetNestedType("Snapshot", BindingFlags.Public | BindingFlags.NonPublic);
             object snapshot = Activator.CreateInstance(snapshotType, true);
             snapshotType.GetField("Target").SetValue(snapshot, State().StableId.ToString("N"));
-            snapshotType.GetField("Session").SetValue(snapshot, "private-ui-fixture");
+            snapshotType.GetField("Session").SetValue(snapshot, "0123456789abcdef0123456789abcdef");
             snapshotType.GetField("Sequence").SetValue(snapshot, 1L);
             snapshotType.GetField("Eligible").SetValue(snapshot, true);
-            snapshotType.GetField("CallWired").SetValue(snapshot, wired.Value);
             Type entryType = snapshotType.GetField("Entries").FieldType.GetElementType();
             snapshotType.GetField("Entries").SetValue(snapshot, Array.CreateInstance(entryType, 0));
             setter.Invoke(null, new[] { snapshot });
@@ -803,7 +810,7 @@ internal static class UiRedesignChecks
         Sent = null;
         AccessTools.Method(Editor, "Reset").Invoke(null, null);
         SetCount(3);
-        SetDirectory(null);
+        SetDirectory(false);
         Refresh();
         Check(
             Sent == null || Sent.StartsWith("directory:"),
@@ -813,7 +820,7 @@ internal static class UiRedesignChecks
             Enumerable.Range(1, 3).All(n => !CountButton(n).interactable),
             "input count controls remain disabled while the function directory is absent"
         );
-        SetDirectory(false);
+        SetDirectory(true);
         Refresh(true);
         Check(
             Enumerable.Range(1, 3).All(n => CountButton(n).interactable),
@@ -833,7 +840,7 @@ internal static class UiRedesignChecks
         );
         CountButton(1).onClick.Invoke();
         Check(
-            Sent == "resize-call:" + State().InstanceId.ToString("N") + ":3:1",
+            Sent == "resize-call:" + State().InstanceId.ToString("N") + ":3:1:0123456789abcdef0123456789abcdef",
             "explicit count selection sends only the instance-scoped resize action"
         );
         Check(State().InputCount == 3, "client resize request leaves authoritative input count unchanged");
@@ -877,17 +884,59 @@ internal static class UiRedesignChecks
         Check(State().InputCount == 3, "resize timeout keeps the server-confirmed three-input preview");
         SetDirectory(true);
         Refresh(true);
+        Check(Enumerable.Range(1, 3).All(n => CountButton(n).interactable), "the editor accepts a new resize request");
         Check(
-            Enumerable.Range(1, 3).All(n => !CountButton(n).interactable),
-            "any wired terminal including output keeps resizing disabled"
+            !CallRoot().GetComponentsInChildren<Transform>(true).Any(t => t.name.EndsWith(" disconnect highlight")),
+            "the diagram highlights no sockets until the server identifies them"
+        );
+        CountButton(1).onClick.Invoke();
+        var snapshot = current.GetValue(null);
+        var field = snapshot.GetType().GetField("ResizeConfirmation");
+        var offer = Activator.CreateInstance(field.FieldType, true);
+        field.FieldType.GetField("Token").SetValue(offer, "0123456789abcdef0123456789abcdef");
+        field.FieldType.GetField("InputCount").SetValue(offer, 1);
+        field.FieldType.GetField("Inputs").SetValue(offer, (byte)4);
+        field.SetValue(snapshot, offer);
+        Refresh(true);
+        Check(State().InputCount == 3, "wired resize offer does not mutate the client part");
+        Check(
+            CallRoot().GetComponentsInChildren<Transform>(true).Any(t => t.name == "Input 3 disconnect highlight"),
+            "affected input has a persistent diagram highlight"
         );
         Check(
-            CallRoot()
-                .GetComponentsInChildren<TMP_Text>(true)
-                .Any(t => t.text == "Disconnect all terminals to change input count."),
-            "wired Call shows the disconnect-all-terminals reason"
+            CallRoot().GetComponentsInChildren<TMP_Text>(true).Any(t => t.text.Contains("Input 3 [REMOVE CABLE]")),
+            "affected input has a textual marker"
         );
-        SetDirectory(false);
+        var cancel = CallRoot()
+            .GetComponentsInChildren<Button>(true)
+            .Single(b => b.GetComponentInChildren<TMP_Text>()?.text == "Cancel resize");
+        cancel.onClick.Invoke();
+        Check(Sent == "cancel-call-resize:0123456789abcdef0123456789abcdef", "cancel sends the offer token");
+        Check(
+            !CallRoot().GetComponentsInChildren<Transform>(true).Any(t => t.name == "Input 3 disconnect highlight"),
+            "cancel promptly clears the offer"
+        );
+        CountButton(1).onClick.Invoke();
+        field.FieldType.GetField("Token").SetValue(offer, "1123456789abcdef0123456789abcdef");
+        field.FieldType.GetField("Inputs").SetValue(offer, (byte)6);
+        field.FieldType.GetField("DirectInputs").SetValue(offer, (byte)2);
+        Refresh(true);
+        var text = CallRoot().GetComponentsInChildren<TMP_Text>(true);
+        Check(
+            text.Any(t => t.text.Contains("Input 2 [DISCONNECT]"))
+                && text.Any(t => t.text.Contains("Input 3 [REMOVE CABLE]")),
+            "mixed losses identify the direct contact and cable separately"
+        );
+        var confirm = CallRoot()
+            .GetComponentsInChildren<Button>(true)
+            .Single(b => b.GetComponentInChildren<TMP_Text>()?.text == "Disconnect Input 2, Input 3 and resize");
+        confirm.onClick.Invoke();
+        Check(
+            Sent == "confirm-call-resize:1123456789abcdef0123456789abcdef" && State().InputCount == 3,
+            "mixed confirmation names both inputs, sends the exact token and waits for authoritative size"
+        );
+        SetCount(1);
+        SetDirectory(true);
         Refresh(true);
     }
 

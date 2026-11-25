@@ -1,7 +1,9 @@
+using System;
 using System.Linq;
 using Core.Services;
 using Players;
 using Ships;
+using Ships.Interface.Model.Parts;
 using Ships.Services;
 using StellarFunctions.Content;
 
@@ -41,7 +43,7 @@ public sealed class CallPartBehaviour : PartBehaviour
 
         state = current;
 
-        if (CallSizing.Handle(liveShip, livePart, state, action))
+        if (CallSizing.Handle(liveShip, livePart, state, player.Id, action))
         {
             return;
         }
@@ -92,23 +94,29 @@ public sealed class CallPartBehaviour : PartBehaviour
 
             return;
         }
-        bool confirmed =
-            action == "confirm-rebind:" + state.PendingFunctionId && !string.IsNullOrEmpty(state.PendingFunctionId);
-        if (
-            !confirmed
-            && (
-                action == null
-                || !action.StartsWith(ClientCallInteraction.SelectAction, System.StringComparison.Ordinal)
-            )
-        )
+        const string confirmRebind = "confirm-rebind:";
+        bool confirmed = action.StartsWith(confirmRebind, StringComparison.Ordinal);
+        if (!confirmed && !action.StartsWith(ClientCallInteraction.SelectAction, StringComparison.Ordinal))
         {
             return;
         }
 
-        string requested = confirmed
-            ? state.PendingFunctionId
-            : action.Substring(ClientCallInteraction.SelectAction.Length);
-        if (!System.Guid.TryParseExact(requested, "N", out var requestedId) || requestedId == System.Guid.Empty)
+        // The editor session scopes any resize offer created by this selection.
+        string[] fields = action
+            .Substring(confirmed ? confirmRebind.Length : ClientCallInteraction.SelectAction.Length)
+            .Split(':');
+        if (
+            fields.Length != 2
+            || !Guid.TryParseExact(fields[0], "N", out var requestedId)
+            || requestedId == Guid.Empty
+            || !Guid.TryParseExact(fields[1], "N", out var session)
+            || session == Guid.Empty
+        )
+        {
+            return;
+        }
+        string requested = requestedId.ToString("N");
+        if (confirmed && requested != state.PendingFunctionId)
         {
             return;
         }
@@ -121,6 +129,7 @@ public sealed class CallPartBehaviour : PartBehaviour
             return;
         }
 
+        CallResizeWiring.ClearOffer(player.Id);
         if (!confirmed && next.Id == state.SelectedFunctionId)
         {
             var sameShips = ServiceLocator.GetService<ShipsServerTracker>();
@@ -140,7 +149,7 @@ public sealed class CallPartBehaviour : PartBehaviour
             return;
         }
         if (
-            NativeFunctionRuntime.HasWiring(new Ships.Interface.Model.Parts.PartContext(part.ShipId, part.PartId))
+            NativeFunctionRuntime.HasWiring(new PartContext(part.ShipId, part.PartId))
             && !confirmed
             && next.Id != state.SelectedFunctionId
             && !string.IsNullOrEmpty(state.SelectedFunctionId)
@@ -164,34 +173,53 @@ public sealed class CallPartBehaviour : PartBehaviour
             return;
         }
 
-        // ContentActions has authenticated the sender and validated the exact
-        // ship/part interaction before reaching this callback.
-        ShipsServerTracker ships = ServiceLocator.GetService<ShipsServerTracker>();
-        if (ships != null && ships.TryGetTrackedShip(part.ShipId, out TrackedShipServer ship))
+        if (
+            NativeFunctionRuntime.TryDefinition(next.Id, part.ShipId, out var definition)
+            && definition.Graph != null
+            && definition.Error == null
+        )
         {
-            FunctionCallState selected = state with
-            {
-                SelectedFunctionId = next.Id,
-                SelectedName = next.Name,
-                PendingFunctionId = "",
-                PendingFunctionName = "",
-                RuntimeJson = "{}",
-                StructureKey = "",
-                Slot0 = "",
-                Slot1 = "",
-                Slot2 = "",
-            };
-            if (NativeFunctionRuntime.TryDefinition(next.Id, part.ShipId, out var definition))
-            {
-                selected = NativeFunctionRuntime.Bind(selected, definition.Graph, true);
-            }
+            ApplySelection(liveShip, livePart, state, definition.Graph, player.Id, session.ToString("N"));
+        }
+    }
 
-            ship.UpdatePartState(part.PartId, selected);
+    private static void ApplySelection(
+        TrackedShipServer ship,
+        StatefulPart part,
+        FunctionCallState state,
+        FunctionGraph graph,
+        uint playerId,
+        string session
+    )
+    {
+        FunctionCallState selected = state with
+        {
+            SelectedFunctionId = graph.Id.ToString("N"),
+            PendingFunctionId = "",
+            PendingFunctionName = "",
+            RuntimeJson = "{}",
+            StructureKey = "",
+            ResizeFeedback = "",
+        };
+        // The smallest native housing exposes one input even for a constant function.
+        int count = Math.Max(1, graph.ParameterCount);
+        if (count != state.InputCount)
+        {
+            selected = CallResizeWiring.Prepare(ship, part, selected, count, playerId, session);
+        }
+
+        // Bind using the final socket count, then replicate the size and bindings together.
+        selected = NativeFunctionRuntime.Bind(selected, graph, true);
+        ship.UpdatePartState(part.Id, selected);
+        if (selected.InputCount != state.InputCount)
+        {
+            CallSizing.InvalidateAfterResize();
         }
     }
 
     public override void OnWorldExit()
     {
+        CallResizeWiring.Reset();
         NativeFunctionRuntime.Reset();
         FunctionEdits.Reset();
         FunctionEditor.Reset();
