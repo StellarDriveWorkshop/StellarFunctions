@@ -36,9 +36,9 @@ internal static class FunctionDirectory
             Session;
         public long Sequence;
         public bool Eligible,
-            Truncated,
-            CallWired;
+            Truncated;
         public Entry[] Entries = Array.Empty<Entry>();
+        public CallResizeWiring.Confirmation ResizeConfirmation;
     }
 
     private struct Reply : IBroadcast
@@ -57,6 +57,7 @@ internal static class FunctionDirectory
     private static long _sequence,
         _accepted;
     internal static Snapshot Current { get; private set; }
+    internal static string Session => _session;
     internal static long LastRequestedSequence => _sequence;
     internal static string Status => StatusAt(UnityEngine.Time.unscaledTime);
 
@@ -187,6 +188,7 @@ internal static class FunctionDirectory
                 || data.Sequence > _sequence
                 || data.Entries == null
                 || data.Entries.Length > 256
+                || !CallResizeWiring.IsValidConfirmation(data.ResizeConfirmation)
             )
             {
                 return false;
@@ -230,11 +232,6 @@ internal static class FunctionDirectory
             Target = ((FunctionPartState)part.Part.State).StableId.ToString("N"),
             Session = session,
             Eligible = NativeFunctionRuntime.HasTransmitter(part.ShipId),
-            CallWired =
-                part.Part.State is FunctionCallState
-                && CallSizing.HasTerminalConnections(
-                    new Ships.Interface.Model.Parts.PartContext(part.ShipId, part.PartId)
-                ),
         };
         uint assembly = NativeFunctionRuntime.AssemblyOf(part.ShipId);
         IEnumerable<NativeFunctionDefinition> source =
@@ -302,6 +299,7 @@ internal static class FunctionDirectory
         EnsureNetworking();
         var snapshot = Build(part, nonce.ToString("N"));
         snapshot.Sequence = sequence;
+        snapshot.ResizeConfirmation = CallResizeWiring.GetConfirmation(player.Id, part, snapshot.Session);
         var response = new Reply { Json = JsonConvert.SerializeObject(snapshot, Formatting.None) };
         if (response.Json.Length > 196608)
         {

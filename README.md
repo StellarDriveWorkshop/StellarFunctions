@@ -18,11 +18,16 @@ reusable templates with private per-call state.
 A hidden research entry (62008) unlocks the set. All parts show live status
 on their faces; long names shrink to a readable size, then scroll.
 
-Selecting a new function sizes an unwired Call to match its inputs when the
-housing has room to change size. A function with no parameters uses the
-one-input housing. Use the input-count buttons to override the size. Omitted
-inputs use their parameter defaults, or zero if there is no default. Calls
-with any terminal connected keep their current size.
+Selecting a new function sizes the Call to match its inputs. A function with
+no parameters uses the one-input housing. You can also choose the size manually.
+Both methods preserve plugged cables and direct contacts on sockets that stay
+in place. If shrinking would disconnect an input, the diagram highlights it.
+Confirm to break that contact or remove the indicated cable, or cancel to keep
+the current size and connections. Canceling this resize keeps the selected function.
+
+The Call keeps its current size if the housing is obstructed, a newly exposed
+socket would make a connection, or the game cannot verify the wiring. Omitted
+inputs use their parameter defaults, or zero if there is no default.
 
 ## Install
 

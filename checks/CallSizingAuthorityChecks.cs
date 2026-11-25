@@ -31,7 +31,9 @@ internal static class CallSizingAuthorityChecks
     internal static void Run(Action<bool, string> check)
     {
         const uint shipId = 491001;
+        const uint playerId = 491002;
         const ushort partId = 41;
+        string session = Guid.NewGuid().ToString("N");
         Type sizing = typeof(FunctionCallState).Assembly.GetType("StellarFunctions.CallSizing");
         MethodInfo handle = AccessTools.Method(sizing, "Handle"),
             payload = AccessTools.Method(sizing, "Payload"),
@@ -64,15 +66,18 @@ internal static class CallSizingAuthorityChecks
         state.AddStatefulPartWithoutInit(part);
         var original = (FunctionCallState)part.State;
         string Request(int count) =>
-            (string)payload.Invoke(null, new object[] { (FunctionCallState)part.State, count });
+            (string)payload.Invoke(null, new object[] { (FunctionCallState)part.State, count, session });
         void Act(string request) =>
-            handle.Invoke(null, new object[] { ship, part, (FunctionCallState)part.State, request });
+            handle.Invoke(null, new object[] { ship, part, (FunctionCallState)part.State, playerId, request });
         MethodInfo applySelection = AccessTools.Method(typeof(CallPartBehaviour), "ApplySelection");
         FunctionCallState Select(int inputs, out Guid id)
         {
             id = Guid.NewGuid();
             object graph = CallSizingDefaultsChecks.SelectionGraph(id, inputs);
-            applySelection.Invoke(null, new object[] { ship, part, (FunctionCallState)part.State, graph });
+            applySelection.Invoke(
+                null,
+                new object[] { ship, part, (FunctionCallState)part.State, graph, playerId, session }
+            );
             return (FunctionCallState)part.State;
         }
 
@@ -106,13 +111,13 @@ internal static class CallSizingAuthorityChecks
                 ReferenceEquals(part.State, original),
                 "real Call action refuses a missing authenticated player before resizing"
             );
-            Act("resize-call:" + Guid.NewGuid().ToString("N") + ":3:1");
+            Act("resize-call:" + Guid.NewGuid().ToString("N") + ":3:1:" + session);
             check(
                 ((FunctionCallState)part.State).InputCount == 3
                     && !string.IsNullOrEmpty(((FunctionCallState)part.State).ResizeFeedback),
                 "resize transaction refuses a forged instance identity"
             );
-            Act("resize-call:" + original.InstanceId.ToString("N") + ":2:1");
+            Act("resize-call:" + original.InstanceId.ToString("N") + ":2:1:" + session);
             check(((FunctionCallState)part.State).InputCount == 3, "resize transaction refuses stale expected size");
             foreach (byte terminal in new byte[] { 0, 1, 2, 3 })
             {
@@ -125,8 +130,8 @@ internal static class CallSizingAuthorityChecks
                 Act(Request(1));
                 check(
                     ((FunctionCallState)part.State).InputCount == 3
-                        && ((FunctionCallState)part.State).ResizeFeedback.Contains("Disconnect all terminals"),
-                    "resize rejects a wire on terminal " + terminal + " including output3"
+                        && !string.IsNullOrEmpty(((FunctionCallState)part.State).ResizeFeedback),
+                    "resize rejects an unverified wire on terminal " + terminal + " including output3"
                 );
                 check(
                     connections.IsSocketPhysicallyOccupied(new EntityPartSocket(shipId, partId, terminal)),
@@ -231,7 +236,9 @@ internal static class CallSizingAuthorityChecks
                             ship,
                             mounted,
                             (FunctionCallState)mounted.State,
-                            (string)payload.Invoke(null, new object[] { (FunctionCallState)mounted.State, size }),
+                            playerId,
+                            (string)
+                                payload.Invoke(null, new object[] { (FunctionCallState)mounted.State, size, session }),
                         }
                     );
                 foreach (int size in new[] { 1, 2, 3, 2, 1, 3 })
@@ -407,7 +414,7 @@ internal static class CallSizingAuthorityChecks
                         && wiredSelection.InputCount == 1
                         && wiredSelection.ListeningMask == 1
                         && authoritativeConnections.IsSocketPhysicallyOccupied(output),
-                    "automatic sizing commits selection without disturbing an output-only cable"
+                    "automatic sizing commits selection at the current size for an incomplete output cable"
                 );
             }
             finally
@@ -523,7 +530,12 @@ internal static class CallSizingAuthorityChecks
                             ship,
                             oriented,
                             (FunctionCallState)oriented.State,
-                            (string)payload.Invoke(null, new object[] { (FunctionCallState)oriented.State, count }),
+                            playerId,
+                            (string)
+                                payload.Invoke(
+                                    null,
+                                    new object[] { (FunctionCallState)oriented.State, count, session }
+                                ),
                         }
                     );
                     check(
@@ -555,22 +567,20 @@ internal static class CallSizingAuthorityChecks
                 "another part's native interaction hierarchy is not exempted as the target's own collider"
             );
 
-            // Issue #1: a Touching connection made under the old variant's
-            // socket layout must not survive a resize that moves the sockets
-            // apart. Connections are keyed by socket id, so the refresh must
-            // delete stale Touching/RelayedByPart records before re-adding.
-            var displaySettings = Resources
+            // Issue #1: seed a native Touching record at the third input.
+            // Shrinking removes that input, so the refresh must clear its record.
+            var sourceSettings = Resources
                 .FindObjectsOfTypeAll<PartSettings>()
-                .FirstOrDefault(p => p != null && p.name == "SignalDisplay" && p.part != null);
-            check(displaySettings != null, "touching fixture finds the native SignalDisplay settings");
-            var displaySocket = displaySettings
+                .FirstOrDefault(p => p != null && p.id == 46 && p.part != null);
+            check(sourceSettings != null, "touching fixture finds the native Constant settings");
+            var sourceSocket = sourceSettings
                 .part.GetComponentsInChildren<SocketObject>(true)
                 .First(s => s != null && s.Type == CableType.Signal);
             var callThree = (PartSettings)variant.Invoke(null, new object[] { 3 });
-            var callSocket3 = callThree
+            var callSocket2 = callThree
                 .part.GetComponentsInChildren<SocketObject>(true)
-                .First(s => s != null && s.Id == 3 && s.Type == CableType.Signal);
-            Vector3 SocketWorld(PartSettings settings, SocketObject socket, IPartPlacement placement)
+                .First(s => s != null && s.Id == 2 && s.Type == CableType.Signal);
+            Vector3 SocketWorld(SocketObject socket, IPartPlacement placement)
             {
                 var marker = socket.GetComponent<FunctionSocketMarker>();
                 Vector3 local =
@@ -581,21 +591,24 @@ internal static class CallSizingAuthorityChecks
             }
             var identity = new FloatingPartPlacement(Vector3.zero, PartOrientation.Forward, PartOrientation.Up);
             var callPlacement = (IPartPlacement)part.Placement;
-            Vector3 callOut = SocketWorld(callThree, callSocket3, callPlacement);
-            // Place the display so its socket world position equals the Call
-            // output's: pos = callOut - R0*local, with R0 the shared frame.
-            Vector3 displayPos = callOut - SocketWorld(displaySettings, displaySocket, identity);
-            var displayPlacement = new FloatingPartPlacement(displayPos, PartOrientation.Forward, PartOrientation.Up);
-            ushort displayId = 88;
-            var displayState = PartStateFactory.BuildDefaultState(displaySettings);
-            var displayPart = new StatefulPart(displayId, displaySettings, displayPlacement) { State = displayState };
-            state.AddStatefulPartWithoutInit(displayPart);
-            state.InitStatefulPart(displayId);
-            var added = AccessTools.Method(typeof(ConnectionsTracker), "OnShipStatefulPartAdded");
-            added.Invoke(connections, new object[] { shipId, (StatefulPart)part });
-            added.Invoke(connections, new object[] { shipId, displayPart });
-            var outSocket = new EntityPartSocket(shipId, partId, 3);
-            var inSocket = new EntityPartSocket(shipId, displayId, displaySocket.Id);
+            Vector3 sourcePosition = SocketWorld(callSocket2, callPlacement) - SocketWorld(sourceSocket, identity);
+            var sourcePlacement = new FloatingPartPlacement(
+                sourcePosition,
+                PartOrientation.Forward,
+                PartOrientation.Up
+            );
+            const ushort sourceId = 88;
+            var sourcePart = new StatefulPart(sourceId, sourceSettings, sourcePlacement)
+            {
+                State = PartStateFactory.BuildDefaultState(sourceSettings),
+            };
+            state.AddStatefulPartWithoutInit(sourcePart);
+            state.InitStatefulPart(sourceId);
+            var outSocket = new EntityPartSocket(shipId, sourceId, sourceSocket.Id);
+            var inSocket = new EntityPartSocket(shipId, partId, 2);
+            connections.SignalConnectionGroups.OnConnectionCreate(
+                new SocketConnection(outSocket, inSocket, SocketConnectionType.Touching)
+            );
             check(
                 connections.SignalConnectionGroups.TryGetSocketPhysicalConnection(outSocket, out var touching)
                     && touching.Type == SocketConnectionType.Touching
@@ -603,21 +616,11 @@ internal static class CallSizingAuthorityChecks
                         (touching.SocketA == outSocket && touching.SocketB == inSocket)
                         || (touching.SocketA == inSocket && touching.SocketB == outSocket)
                     ),
-                "coincident Call output and display input form a native Touching signal connection"
+                "fixture seeds a Touching signal connection on the third Call input"
             );
             state.SetPartState(partId, original with { InputCount = 1 });
             var callOne = (PartSettings)variant.Invoke(null, new object[] { 1 });
-            Vector3 movedOut = SocketWorld(
-                callOne,
-                callOne
-                    .part.GetComponentsInChildren<SocketObject>(true)
-                    .First(s => s != null && s.Id == 3 && s.Type == CableType.Signal),
-                callPlacement
-            );
-            check(
-                Vector3.Distance(movedOut, callOut) > .05f,
-                "one-input variant moves the output socket away from the display"
-            );
+            check(!callOne.GetSockets().Any(s => s.Id == 2), "one-input variant removes the third input");
             bool stale =
                 connections.SignalConnectionGroups.TryGetSocketConnections(outSocket, out var remaining)
                 && remaining.Any(c =>
@@ -627,10 +630,7 @@ internal static class CallSizingAuthorityChecks
                         || (c.SocketA == inSocket && c.SocketB == outSocket)
                     )
                 );
-            check(
-                !stale,
-                "resize to one input removes the stale Touching connection once the sockets no longer coincide"
-            );
+            check(!stale, "resize to one input removes the stale Touching connection to the removed input");
             state.SetPartState(partId, original);
         }
         finally
