@@ -38,10 +38,17 @@ intends to approve.
 4. In local release storage, create the numbered `releases/v<major>.<minor>.<patch>/` artifact directory
    with the release DLL and `SHA256SUMS`. Verify the checksum against the exact
    DLL to be published. Keep binaries out of the public Git history.
-5. Open a GitHub draft release for the matching version tag, attach the DLL and
-   `SHA256SUMS`, and include concise notes describing compatibility and the
-   validation actually completed. Verify the tag points to the approved source
-   and the attached DLL hash matches `SHA256SUMS`, then publish the release.
+5. Prepare the Mod Manager ZIP as described below. Open a GitHub draft release
+   for the matching version tag and attach the DLL, `SHA256SUMS`, and
+   `StellarFunctions.zip`. Include concise notes describing compatibility and
+   the validation actually completed. End update notes with a **Full Changelog**
+   link from the previous published release tag to the new tag, as in the
+   [v1.0.0 to v2.0.0 comparison](https://github.com/StellarDriveWorkshop/StellarFunctions/compare/v1.0.0...v2.0.0).
+   Verify that the draft targets the approved commit and that the attached DLL
+   hash matches `SHA256SUMS`, then publish the release.
+6. Verify the published tag, downloads, and Full Changelog link. Then open a
+   separate PR to update the root `mod.json` on `main` to match the published
+   package. Verify the manifest version after merging that PR.
 
 Do not describe a release as runtime-validated, save-compatible, or server-ready
 unless the corresponding evidence exists. See the project validation record for
@@ -49,11 +56,14 @@ the scope and limits of each check.
 
 ## Stellar Mod Manager package
 
-Update the root `mod.json` version with the release version and keep its image
-paths present in the repository. Include `StellarFunctions.zip` in the draft
-release. The archive contains `mod.json`, its referenced images, and
-`Mods/StellarFunctions.dll`. Check the archived DLL against the release
-checksum and the archived metadata against the tagged source.
+Keep the tracked root `mod.json` at the last published version through the
+release-prep PR and the draft release. For `StellarFunctions.zip`, copy the
+manifest to a local packaging directory and set the release version on that
+copy. Include it as `mod.json` alongside its referenced images and
+`Mods/StellarFunctions.dll`. Verify that the archived manifest matches the
+staged copy, its version matches the intended tag, and the DLL matches the
+release checksum.
 
-After publishing, submit the public repository with the
-[Stellar Mod Manager submission form](https://jollyname.dev/submit/).
+Use the [Stellar Mod Manager submission form](https://jollyname.dev/submit/)
+for the initial listing. For an existing listing, Mod Manager picks up the
+new version automatically after the manifest PR is merged.
