@@ -64,5 +64,6 @@ copy. Include it as `mod.json` alongside its referenced images and
 staged copy, its version matches the intended tag, and the DLL matches the
 release checksum.
 
-After publishing and merging the manifest PR, submit the public repository
-with the [Stellar Mod Manager submission form](https://jollyname.dev/submit/).
+Use the [Stellar Mod Manager submission form](https://jollyname.dev/submit/)
+for the initial listing. For an existing listing, Mod Manager picks up the
+new version automatically after the manifest PR is merged.
